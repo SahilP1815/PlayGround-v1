@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function GroundCard({ ground }) {
   return (
-    <div className="glass-card rounded-3xl overflow-hidden group">
+    <Link href={`/grounds/${ground.id}`} className="glass-card rounded-3xl overflow-hidden group block hover:scale-[1.01] smooth-transition">
       <div className="relative h-48 overflow-hidden">
         <img 
           src={ground.images[0] || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800&auto=format&fit=crop"} 
@@ -48,14 +48,11 @@ export default function GroundCard({ ground }) {
             <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Starts from</p>
             <p className="text-lg font-bold text-secondary">₹{Math.min(...ground.courts.map(c => c.base_price))}<span className="text-xs text-gray-400 font-normal">/hr</span></p>
           </div>
-          <Link 
-            href={`/grounds/${ground.id}`}
-            className="bg-surface hover:bg-primary text-secondary hover:text-white p-2.5 rounded-xl smooth-transition border border-black/5"
-          >
+          <div className="bg-surface group-hover:bg-primary text-secondary group-hover:text-white p-2.5 rounded-xl smooth-transition border border-black/5">
             <ArrowRight className="w-5 h-5" />
-          </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -26,7 +26,10 @@ app.include_router(booking_router, prefix="/api/bookings", tags=["bookings"])
 
 @app.on_event("startup")
 async def startup_event():
-    await init_db()
+    try:
+        await init_db()
+    except Exception as e:
+        print(f"Warning: Database initialization failed: {e}. Running in limited mode.")
 
 @app.get("/")
 async def root():

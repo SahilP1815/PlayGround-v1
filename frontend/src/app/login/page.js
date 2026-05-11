@@ -1,14 +1,14 @@
 "use client";
 
 import Navbar from "@/components/Navbar";
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  ArrowRight, 
-  Github, 
-  Chrome,
-  Phone,
+import {
+  User,
+  Mail,
+  Lock,
+  ArrowRight,
+  Github,
+  Globe,
+  Smartphone,
   CheckCircle2,
   Trophy
 } from "lucide-react";
@@ -23,10 +23,10 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      
+
       <main className="flex-1 flex items-center justify-center pt-20 pb-12 px-6">
         <div className="max-w-6xl w-full grid md:grid-cols-2 gap-12 items-center">
-          
+
           {/* Left: Branding/Value Prop */}
           <div className="hidden md:block">
             <motion.div
@@ -42,7 +42,7 @@ export default function AuthPage() {
                 Own the Game.
               </h1>
               <p className="text-gray-500 text-lg max-w-md mb-10 leading-relaxed">
-                Whether you're a weekend warrior or a venue owner, PlayGround is your 
+                Whether you're a weekend warrior or a venue owner, PlayGround is your
                 all-access pass to the best sports facilities in Ahmedabad.
               </p>
 
@@ -78,19 +78,17 @@ export default function AuthPage() {
           >
             {/* Role Switcher */}
             <div className="flex bg-surface p-1.5 rounded-2xl border border-black/5 mb-10 w-fit">
-              <button 
+              <button
                 onClick={() => setRole("user")}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${
-                  role === "user" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
-                }`}
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${role === "user" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
+                  }`}
               >
                 I'm a Player
               </button>
-              <button 
+              <button
                 onClick={() => setRole("owner")}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${
-                  role === "owner" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
-                }`}
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${role === "owner" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
+                  }`}
               >
                 I'm an Owner
               </button>
@@ -115,9 +113,9 @@ export default function AuthPage() {
                     <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Full Name</label>
                     <div className="relative group">
                       <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
-                      <input 
-                        type="text" 
-                        placeholder="Rahul Sharma" 
+                      <input
+                        type="text"
+                        placeholder="Rahul Sharma"
                         className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
                       />
                     </div>
@@ -129,9 +127,9 @@ export default function AuthPage() {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Email Address</label>
                 <div className="relative group">
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
-                  <input 
-                    type="email" 
-                    placeholder="rahul@example.com" 
+                  <input
+                    type="email"
+                    placeholder="rahul@example.com"
                     className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
                   />
                 </div>
@@ -141,15 +139,15 @@ export default function AuthPage() {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Password</label>
                 <div className="relative group">
                   <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
-                  <input 
-                    type="password" 
-                    placeholder="••••••••" 
+                  <input
+                    type="password"
+                    placeholder="••••••••"
                     className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
                   />
                 </div>
               </div>
 
-              <button 
+              <button
                 type="button"
                 className="w-full bg-secondary hover:bg-primary text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-xl shadow-black/10 mt-8"
               >
@@ -164,17 +162,17 @@ export default function AuthPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-               <button className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
-                 <Chrome className="w-5 h-5" /> Google
-               </button>
-               <button className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
-                 <Phone className="w-5 h-5" /> Phone
-               </button>
+              <button className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
+                <Globe className="w-5 h-5" /> Google
+              </button>
+              <button className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
+                <Smartphone className="w-5 h-5" /> Smartphone
+              </button>
             </div>
 
             <p className="text-center mt-10 text-sm text-gray-500">
               {mode === "login" ? "Don't have an account?" : "Already have an account?"}
-              <button 
+              <button
                 onClick={() => setMode(mode === "login" ? "signup" : "login")}
                 className="ml-2 font-bold text-primary hover:underline"
               >

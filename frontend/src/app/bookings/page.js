@@ -1,14 +1,14 @@
 "use client";
 
 import Navbar from "@/components/Navbar";
-import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  ArrowRight, 
-  Download, 
-  Share2, 
-  CloudRain, 
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  ArrowRight,
+  Download,
+  Share2,
+  CloudRain,
   Navigation,
   AlertCircle
 } from "lucide-react";
@@ -49,28 +49,26 @@ export default function BookingsPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      
+
       <main className="pt-32 pb-20 container mx-auto px-6 max-w-5xl flex-1">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
             <h1 className="text-4xl font-bold outfit mb-2">My Bookings</h1>
             <p className="text-gray-400">Manage your games and upcoming sports sessions.</p>
           </div>
-          
+
           <div className="flex bg-surface p-1.5 rounded-2xl border border-black/5">
-            <button 
+            <button
               onClick={() => setActiveTab("upcoming")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold smooth-transition ${
-                activeTab === "upcoming" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
-              }`}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold smooth-transition ${activeTab === "upcoming" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
+                }`}
             >
               Upcoming
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab("history")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold smooth-transition ${
-                activeTab === "history" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
-              }`}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold smooth-transition ${activeTab === "history" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
+                }`}
             >
               History
             </button>
@@ -107,8 +105,8 @@ function BookingDetailCard({ booking }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-6 left-6 text-white">
             <div className="flex items-center gap-2 mb-2">
-               <span className="bg-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">Confirmed</span>
-               <span className="text-[10px] font-medium text-white/80">{booking.id}</span>
+              <span className="bg-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">Confirmed</span>
+              <span className="text-[10px] font-medium text-white/80">{booking.id}</span>
             </div>
             <h3 className="text-2xl font-bold outfit">{booking.ground}</h3>
           </div>

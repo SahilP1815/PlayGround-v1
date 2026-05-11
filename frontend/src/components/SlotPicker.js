@@ -36,7 +36,8 @@ export default function SlotPicker({ court, slots, onSelect, groundLocation, mul
   };
 
   const handleSlotClick = (slot) => {
-    if (slot.status !== "available") return;
+    const isAvailable = slot.status === "available" || slot.available === true;
+    if (!isAvailable) return;
 
     let newSelected;
     if (multiSelect) {
@@ -196,7 +197,7 @@ function DropdownSlotGroup({ title, subtitle, icon, slots, selectedIds, onClick,
           {slots.length > 0 ? (
             <div className="grid grid-cols-3 gap-2">
               {slots.map((slot) => {
-                const isAvailable = slot.status === "available";
+                const isAvailable = slot.status === "available" || slot.available === true;
                 const isSelected = selectedIds.includes(slot.id);
 
                 return (

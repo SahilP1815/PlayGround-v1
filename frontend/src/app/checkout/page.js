@@ -33,7 +33,7 @@ export default function CheckoutPage() {
               <Info className="w-5 h-5 text-primary" />
               Booking Summary
             </h2>
-            
+
             <div className="glass p-6 rounded-3xl border border-white/10 mb-8">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 rounded-xl overflow-hidden">
@@ -81,23 +81,23 @@ export default function CheckoutPage() {
           {/* Right: Payment */}
           <div className="order-1 md:order-2">
             <h2 className="text-xl font-bold outfit mb-6">Payment Method</h2>
-            
+
             <div className="space-y-4 mb-12">
-              <PaymentOption 
+              <PaymentOption
                 id="upi"
                 icon={<Smartphone className="w-5 h-5" />}
                 title="UPI (PhonePe, GPay, Paytm)"
                 active={paymentMethod === "upi"}
                 onClick={() => setPaymentMethod("upi")}
               />
-              <PaymentOption 
+              <PaymentOption
                 id="card"
                 icon={<CreditCard className="w-5 h-5" />}
                 title="Credit / Debit Card"
                 active={paymentMethod === "card"}
                 onClick={() => setPaymentMethod("card")}
               />
-              <PaymentOption 
+              <PaymentOption
                 id="wallet"
                 icon={<Wallet className="w-5 h-5" />}
                 title="Net Banking / Wallets"
@@ -106,12 +106,11 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <button 
+            <button
               onClick={handlePayment}
               disabled={isProcessing}
-              className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-lg shadow-primary/20 ${
-                isProcessing ? "bg-surface text-gray-500" : "bg-primary hover:bg-primary-dark text-white"
-              }`}
+              className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-lg shadow-primary/20 ${isProcessing ? "bg-surface text-gray-500" : "bg-primary hover:bg-primary-dark text-white"
+                }`}
             >
               {isProcessing ? (
                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -128,13 +127,12 @@ export default function CheckoutPage() {
 
 function PaymentOption({ icon, title, active, onClick }) {
   return (
-    <button 
+    <button
       onClick={onClick}
-      className={`w-full p-5 rounded-2xl border text-left flex items-center gap-4 smooth-transition ${
-        active 
-          ? "bg-primary/10 border-primary shadow-lg shadow-primary/5" 
-          : "glass border-white/5 hover:border-white/20"
-      }`}
+      className={`w-full p-5 rounded-2xl border text-left flex items-center gap-4 smooth-transition ${active
+        ? "bg-primary/10 border-primary shadow-lg shadow-primary/5"
+        : "glass border-white/5 hover:border-white/20"
+        }`}
     >
       <div className={`${active ? "text-primary" : "text-gray-400"}`}>{icon}</div>
       <span className={`text-sm font-bold ${active ? "text-white" : "text-gray-400"}`}>{title}</span>

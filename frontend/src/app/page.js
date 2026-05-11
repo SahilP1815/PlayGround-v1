@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import { Trophy, Zap, Clock, Shield, ArrowRight, MapPin } from "lucide-react";
+import Link from "next/link";
 
 const sports = [
   { name: "Cricket", icon: "🏏", count: 42 },
@@ -23,18 +24,22 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold outfit mb-4 text-secondary">Choose Your Sport</h2>
             <p className="text-gray-600">Whatever you play, we have the perfect arena for you.</p>
           </div>
-          <button className="text-primary font-bold flex items-center gap-2 group hover:gap-3 smooth-transition">
+          <Link href="/explore" className="text-primary font-bold flex items-center gap-2 group hover:gap-3 smooth-transition">
             View All Sports <ArrowRight className="w-5 h-5" />
-          </button>
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {sports.map((sport) => (
-            <div key={sport.name} className="glass-card p-6 rounded-3xl flex flex-col items-center text-center hover:scale-[1.02] active:scale-95 smooth-transition cursor-pointer">
+            <Link 
+              key={sport.name} 
+              href={`/explore?sport=${sport.name}`}
+              className="glass-card p-6 rounded-3xl flex flex-col items-center text-center hover:scale-[1.02] active:scale-95 smooth-transition cursor-pointer"
+            >
               <span className="text-4xl mb-4">{sport.icon}</span>
               <h3 className="font-bold text-lg text-secondary">{sport.name}</h3>
               <p className="text-xs text-gray-500 mt-1">{sport.count} Grounds</p>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -46,9 +51,9 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold outfit mb-4 text-secondary">Trending Arenas</h2>
             <p className="text-gray-600">Top-rated venues with premium facilities in Ahmedabad.</p>
           </div>
-          <button className="text-primary font-bold flex items-center gap-2 group hover:gap-3 smooth-transition">
+          <Link href="/explore" className="text-primary font-bold flex items-center gap-2 group hover:gap-3 smooth-transition">
             Explore All Venues <ArrowRight className="w-5 h-5" />
-          </button>
+          </Link>
         </div>
 
         {/* Mobile Slideshow / Desktop Grid */}
@@ -77,7 +82,7 @@ export default function Home() {
                     <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
                     <p className="text-lg font-bold text-secondary">₹1,200<span className="text-xs text-gray-400 font-medium">/hr</span></p>
                   </div>
-                  <button className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</button>
+                  <Link href="/grounds/1" className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</Link>
                 </div>
               </div>
             </div>
@@ -107,7 +112,7 @@ export default function Home() {
                     <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
                     <p className="text-lg font-bold text-secondary">₹1,000<span className="text-xs text-gray-400 font-medium">/hr</span></p>
                   </div>
-                  <button className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</button>
+                  <Link href="/grounds/2" className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</Link>
                 </div>
               </div>
             </div>
@@ -137,7 +142,7 @@ export default function Home() {
                     <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
                     <p className="text-lg font-bold text-secondary">₹400<span className="text-xs text-gray-400 font-medium">/hr</span></p>
                   </div>
-                  <button className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</button>
+                  <Link href="/grounds/3" className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</Link>
                 </div>
               </div>
             </div>
