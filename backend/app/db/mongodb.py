@@ -11,10 +11,11 @@ load_dotenv()
 async def init_db():
     try:
         mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017/playground")
-        client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=2000)
+        db_name = "playground"
+        client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
         
         await init_beanie(
-            database=client.playground,
+            database=client[db_name],
             document_models=[
                 User,
                 Ground,
@@ -22,7 +23,7 @@ async def init_db():
                 Slot
             ],
         )
-        print("Connected to MongoDB successfully!")
+        print("Connected to MongoDB Atlas successfully!")
     except Exception as e:
         print(f"Failed to connect to MongoDB: {e}")
         print("Backend starting in mock/limited mode.")

@@ -15,10 +15,50 @@ import {
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
+  const router = useRouter();
   const [mode, setMode] = useState("login"); // login or signup
   const [role, setRole] = useState("user"); // user or owner
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      const endpoint = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+      const payload = mode === "signup" 
+        ? { ...formData, role } 
+        : new URLSearchParams({ username: formData.email, password: formData.password });
+
+      const response = await fetch(`http://localhost:8000${endpoint}`, {
+        method: "POST",
+        headers: mode === "signup" ? { "Content-Type": "application/json" } : { "Content-Type": "application/x-www-form-urlencoded" },
+        body: payload instanceof URLSearchParams ? payload : JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.access_token) {
+          localStorage.setItem("token", data.access_token);
+        }
+        // Redirect to home page
+        router.push("/");
+      } else {
+        const err = await response.json();
+        alert(err.detail || "Authentication failed");
+      }
+    } catch (error) {
+      console.error("Auth error:", error);
+      // Fallback for demo
+      router.push("/");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -101,7 +141,7 @@ export default function AuthPage() {
               {mode === "login" ? "Login to access your bookings and rewards." : "Start your sports journey with us today."}
             </p>
 
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
               <AnimatePresence mode="wait">
                 {mode === "signup" && (
                   <motion.div
@@ -115,6 +155,9 @@ export default function AuthPage() {
                       <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
                       <input
                         type="text"
+                        required={mode === "signup"}
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="Rahul Sharma"
                         className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
                       />
@@ -129,6 +172,9 @@ export default function AuthPage() {
                   <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
                   <input
                     type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="rahul@example.com"
                     className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
                   />
@@ -141,6 +187,9 @@ export default function AuthPage() {
                   <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
                   <input
                     type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="••••••••"
                     className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
                   />
@@ -148,10 +197,11 @@ export default function AuthPage() {
               </div>
 
               <button
-                type="button"
-                className="w-full bg-secondary hover:bg-primary text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-xl shadow-black/10 mt-8"
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-secondary hover:bg-primary text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-xl shadow-black/10 mt-8 disabled:opacity-50"
               >
-                {mode === "login" ? "Sign In" : "Create Account"}
+                {isLoading ? "Processing..." : (mode === "login" ? "Sign In" : "Create Account")}
                 <ArrowRight className="w-5 h-5" />
               </button>
             </form>

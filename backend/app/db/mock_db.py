@@ -8,21 +8,24 @@ class MockDB:
     @staticmethod
     def _load():
         if not os.path.exists(MOCK_FILE):
-            return {"bookings": [], "slots": []}
+            return {"bookings": [], "slots": [], "users": []}
         with open(MOCK_FILE, "r") as f:
-            return json.load(f)
-
-    @staticmethod
-    def _save(data):
-        with open(MOCK_FILE, "w") as f:
-            json.dump(data, f, indent=2)
+            data = json.load(f)
+            if "users" not in data:
+                data["users"] = []
+            return data
 
     @classmethod
-    def add_booking(cls, booking_dict):
+    def add_user(cls, user_dict):
         data = cls._load()
-        data["bookings"].append(booking_dict)
+        data["users"].append(user_dict)
         cls._save(data)
-        return booking_dict
+        return user_dict
+
+    @classmethod
+    def get_user_by_email(cls, email):
+        data = cls._load()
+        return next((u for u in data["users"] if u["email"] == email), None)
 
     @classmethod
     def get_user_bookings(cls, user_id):
