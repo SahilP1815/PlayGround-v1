@@ -32,7 +32,7 @@ export default function AuthPage() {
       const endpoint = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
       const payload = mode === "signup" 
         ? { ...formData, role } 
-        : new URLSearchParams({ username: formData.email, password: formData.password });
+        : new URLSearchParams({ username: formData.email, password: formData.password, role: role });
 
       const response = await fetch(`http://localhost:8000${endpoint}`, {
         method: "POST",
@@ -42,19 +42,53 @@ export default function AuthPage() {
 
       if (response.ok) {
         const data = await response.json();
+        let token = null;
+
         if (data.access_token) {
-          localStorage.setItem("token", data.access_token);
+          // Login response - save token directly
+          token = data.access_token;
+          localStorage.setItem("token", token);
+        } else if (mode === "signup") {
+          // Signup response - auto-login to get a token
+          const loginRes = await fetch("http://localhost:8000/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ username: formData.email, password: formData.password })
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            token = loginData.access_token;
+            localStorage.setItem("token", token);
+          }
         }
+
+        // Fetch user name and store it
+        if (token) {
+          try {
+            const meRes = await fetch("http://localhost:8000/api/auth/me", {
+              headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              localStorage.setItem("userName", meData.name);
+              localStorage.setItem("userRole", meData.role);
+            }
+          } catch (_) {}
+        }
+
         // Redirect to home page
         router.push("/");
       } else {
         const err = await response.json();
-        alert(err.detail || "Authentication failed");
+        // Extract the most readable error message
+        const message = err.detail 
+          ? (typeof err.detail === 'string' ? err.detail : (Array.isArray(err.detail) ? err.detail[0].msg : JSON.stringify(err.detail)))
+          : "Authentication failed";
+        alert(message);
       }
     } catch (error) {
       console.error("Auth error:", error);
-      // Fallback for demo
-      router.push("/");
+      alert("Could not connect to the server. Please ensure the backend is running.");
     } finally {
       setIsLoading(false);
     }

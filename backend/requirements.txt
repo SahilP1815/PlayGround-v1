@@ -1,7 +1,8 @@
 fastapi
 uvicorn
-motor
-beanie
+motor==3.7.1
+beanie==1.28.0
+pymongo==4.17.0
 pydantic[email]
 python-jose[cryptography]
 passlib[bcrypt]

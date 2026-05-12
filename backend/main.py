@@ -6,6 +6,10 @@ from app.api.grounds import router as ground_router
 from app.api.slots import router as slot_router
 from app.api.bookings import router as booking_router
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="PlayGround API", version="1.0.0")
 
@@ -29,7 +33,7 @@ async def startup_event():
     try:
         await init_db()
     except Exception as e:
-        print(f"Warning: Database initialization failed: {e}. Running in limited mode.")
+        print(f"Error: Database initialization failed: {e}")
 
 @app.get("/")
 async def root():
