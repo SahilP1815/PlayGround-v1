@@ -24,9 +24,18 @@ class GroundBase(BaseModel):
     description: str
     location: LocationBase
     images: List[str] = []
+    amenities: List[str] = []
 
 class GroundCreate(GroundBase):
     courts: List[CourtCreate] = []
+
+class GroundUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[LocationBase] = None
+    images: Optional[List[str]] = None
+    amenities: Optional[List[str]] = None
+    courts: Optional[List[CourtCreate]] = None
 
 class GroundResponse(GroundBase):
     id: str

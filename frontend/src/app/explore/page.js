@@ -6,44 +6,33 @@ import { Search, Filter, MapPin } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-// Mock data for UI development
-const mockGrounds = [
-  {
-    id: "1",
-    name: "Elite Sports Arena",
-    location: { address: "Satellite, Ahmedabad" },
-    images: ["https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800"],
-    courts: [
-      { id: "c1", sport_type: "cricket", base_price: 1200 },
-      { id: "c2", sport_type: "football", base_price: 1500 }
-    ]
-  },
-  {
-    id: "2",
-    name: "Victory Turf",
-    location: { address: "SG Highway, Ahmedabad" },
-    images: ["https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=800"],
-    courts: [
-      { id: "c3", sport_type: "cricket", base_price: 1000 }
-    ]
-  },
-  {
-    id: "3",
-    name: "Smash Badminton Club",
-    location: { address: "Prahlad Nagar, Ahmedabad" },
-    images: ["https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=800"],
-    courts: [
-      { id: "c4", sport_type: "badminton", base_price: 400 }
-    ]
-  }
-];
+// No mock data needed anymore
 
 function ExploreContent() {
   const searchParams = useSearchParams();
   const initialSport = searchParams.get("sport") || "All Sports";
   
+  const [grounds, setGrounds] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedSport, setSelectedSport] = useState(initialSport);
+
+  useEffect(() => {
+    const fetchGrounds = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/grounds/");
+        if (response.ok) {
+          const data = await response.json();
+          setGrounds(data);
+        }
+      } catch (err) {
+        console.error("Error fetching grounds:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchGrounds();
+  }, []);
 
   useEffect(() => {
     const sportParam = searchParams.get("sport");
@@ -53,7 +42,7 @@ function ExploreContent() {
   }, [searchParams]);
 
   const filteredGrounds = useMemo(() => {
-    return mockGrounds.filter(ground => {
+    return grounds.filter(ground => {
       const matchesSearch = ground.name.toLowerCase().includes(search.toLowerCase()) || 
                            ground.location.address.toLowerCase().includes(search.toLowerCase());
       
@@ -62,7 +51,7 @@ function ExploreContent() {
       
       return matchesSearch && matchesSport;
     });
-  }, [search, selectedSport]);
+  }, [grounds, search, selectedSport]);
 
   const sportsTags = ["All Sports", "Cricket", "Football", "Badminton", "Pickleball", "Volleyball"];
 
@@ -108,7 +97,11 @@ function ExploreContent() {
 
       {/* Results Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {filteredGrounds.length > 0 ? (
+        {isLoading ? (
+          [1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-96 bg-surface animate-pulse rounded-[32px] border border-black/5" />
+          ))
+        ) : filteredGrounds.length > 0 ? (
           filteredGrounds.map(ground => (
             <GroundCard key={ground.id} ground={ground} />
           ))

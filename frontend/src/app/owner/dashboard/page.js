@@ -10,6 +10,7 @@ import {
   ArrowUpRight, 
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 
 import Link from "next/link";
 
@@ -17,12 +18,53 @@ export default function OwnerDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  const [stats, setStats] = useState({ totalGrounds: 0, totalCourts: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [recentBookings, setRecentBookings] = useState([]);
+
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("http://localhost:8000/api/grounds/my", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const totalGrounds = data.length;
+          const totalCourts = data.reduce((acc, ground) => acc + (ground.courts?.length || 0), 0);
+          setStats({ totalGrounds, totalCourts });
+        }
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    const fetchRecentBookings = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("http://localhost:8000/api/bookings/owner", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Sort by creation date and take last 3
+          const sorted = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          setRecentBookings(sorted.slice(0, 3));
+        }
+      } catch (err) {
+        console.error("Error fetching recent bookings:", err);
+      }
+    };
+    fetchStats();
+    fetchRecentBookings();
   }, []);
 
 
@@ -42,7 +84,7 @@ export default function OwnerDashboard() {
         <div className="flex items-center justify-between mb-12">
           <div>
             <h1 className="text-4xl font-bold text-[#0F172A] outfit mb-2">Owner Dashboard</h1>
-            <p className="text-gray-400 font-medium text-lg">Welcome back, Elite Sports Admin</p>
+            <p className="text-gray-400 font-medium text-lg">Welcome back, {typeof window !== 'undefined' ? localStorage.getItem("userName") || "Elite Sports Admin" : "Elite Sports Admin"}</p>
           </div>
           <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 flex items-center gap-3 shadow-sm">
             <div className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse" />
@@ -56,8 +98,8 @@ export default function OwnerDashboard() {
             icon={<IndianRupee className="w-6 h-6 text-[#10B981]" />}
             iconBg="bg-[#10B981]/10"
             label="Total Earnings"
-            value="INR 48,250"
-            trend="+12% from last month"
+            value={`₹${recentBookings.reduce((sum, b) => sum + b.total_price, 0)}`}
+            trend="Today's revenue"
             trendColor="text-[#10B981]"
           />
           <Link href="/owner/bookings" className="block">
@@ -65,8 +107,8 @@ export default function OwnerDashboard() {
               icon={<Users className="w-6 h-6 text-[#3B82F6]" />}
               iconBg="bg-[#3B82F6]/10"
               label="Active Bookings"
-              value="24"
-              trend="8 for today"
+              value={recentBookings.length.toString()}
+              trend="Recent activity"
               trendColor="text-[#10B981]"
             />
           </Link>
@@ -75,8 +117,8 @@ export default function OwnerDashboard() {
               icon={<Building2 className="w-6 h-6 text-[#A855F7]" />}
               iconBg="bg-[#A855F7]/10"
               label="Total Grounds"
-              value="02"
-              trend="05 courts active"
+              value={isLoading ? "..." : stats.totalGrounds.toString().padStart(2, '0')}
+              trend={`${stats.totalCourts} courts active`}
               trendColor="text-[#10B981]"
             />
           </Link>
@@ -88,39 +130,27 @@ export default function OwnerDashboard() {
           <div className="lg:col-span-2 bg-white rounded-[40px] border border-gray-100 p-10 shadow-sm">
             <div className="flex items-center justify-between mb-10">
               <h2 className="text-2xl font-bold text-[#0F172A] outfit">Recent Bookings</h2>
-              <button className="text-[#10B981] text-sm font-bold flex items-center gap-1 group">
+              <Link href="/owner/bookings" className="text-[#10B981] text-sm font-bold flex items-center gap-1 group">
                 View All <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 smooth-transition" />
-              </button>
+              </Link>
             </div>
 
             <div className="space-y-6">
-              <Link href="/owner/bookings" className="block">
-                <BookingRow 
-                  user="Rahul Sharma" 
-                  court="Turf 1 | 06:00 PM - 07:00 PM" 
-                  amount="INR 1,500"
-                  status="PAID"
-                  color="bg-[#00A3C4]"
-                />
-              </Link>
-              <Link href="/owner/bookings" className="block">
-                <BookingRow 
-                  user="Amit Patel" 
-                  court="Box Cricket | 08:00 PM - 09:00 PM" 
-                  amount="INR 1,200"
-                  status="PAID"
-                  color="bg-[#00A3C4]"
-                />
-              </Link>
-              <Link href="/owner/bookings" className="block">
-                <BookingRow 
-                  user="Vikram Singh" 
-                  court="Turf 1 | 10:00 PM - 11:00 PM" 
-                  amount="INR 1,800"
-                  status="PENDING"
-                  color="bg-[#00A3C4]"
-                />
-              </Link>
+              {recentBookings.length > 0 ? (
+                recentBookings.map((booking, idx) => (
+                  <Link key={booking.id} href="/owner/bookings" className="block">
+                    <BookingRow 
+                      user={booking.customer_name} 
+                      court={`${booking.court_name} | ${format(new Date(booking.start_time), "hh:mm a")}${booking.end_time ? ` - ${format(new Date(booking.end_time), "hh:mm a")}` : ""}`} 
+                      amount={`₹${booking.total_price}`}
+                      status={booking.status.toUpperCase()}
+                      color={idx % 2 === 0 ? "bg-[#00A3C4]" : "bg-[#A855F7]"}
+                    />
+                  </Link>
+                ))
+              ) : (
+                <p className="text-gray-400 text-center py-10 font-medium">No recent bookings found.</p>
+              )}
             </div>
           </div>
 

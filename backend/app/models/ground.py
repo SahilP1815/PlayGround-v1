@@ -11,6 +11,7 @@ class SportType(str, Enum):
     BADMINTON = "badminton"
     PICKLEBALL = "pickleball"
     VOLLEYBALL = "volleyball"
+    TENNIS = "tennis"
 
 class Court(BaseModel):
     id: UUID = Field(default_factory=uuid4)
@@ -30,6 +31,7 @@ class Ground(Document):
     description: str
     location: Location
     images: List[str] = []
+    amenities: List[str] = []
     courts: List[Court] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

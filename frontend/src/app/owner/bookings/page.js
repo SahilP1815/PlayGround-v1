@@ -14,12 +14,39 @@ import {
   ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
 
 export default function OwnerBookings() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [bookings, setBookings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOwnerBookings = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch("http://localhost:8000/api/bookings/owner", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setBookings(data);
+        }
+      } catch (err) {
+        console.error("Error fetching owner bookings:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchOwnerBookings();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,57 +56,9 @@ export default function OwnerBookings() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const bookings = [
-    {
-      id: "BK-7214",
-      customer: "Rahul Sharma",
-      email: "rahul@example.com",
-      phone: "+91 98765 43210",
-      ground: "Masterstroke Turf",
-      court: "Main Turf A",
-      sport: "Football",
-      date: "May 15, 2024",
-      time: "06:00 PM - 07:00 PM",
-      amount: "₹1,500",
-      status: "Confirmed",
-      payment: "Paid",
-      bookedAt: "May 12, 10:30 AM"
-    },
-    {
-      id: "BK-8392",
-      customer: "Amit Patel",
-      email: "amit@example.com",
-      phone: "+91 99887 76655",
-      ground: "Masterstroke Turf",
-      court: "Box Cricket 1",
-      sport: "Cricket",
-      date: "May 15, 2024",
-      time: "08:00 PM - 10:00 PM",
-      amount: "₹2,400",
-      status: "Confirmed",
-      payment: "Paid",
-      bookedAt: "May 13, 04:15 PM"
-    },
-    {
-      id: "BK-9012",
-      customer: "Vikram Singh",
-      email: "vikram@example.com",
-      phone: "+91 91234 56789",
-      ground: "Masterstroke Turf",
-      court: "Main Turf A",
-      sport: "Football",
-      date: "May 16, 2024",
-      time: "07:00 AM - 08:00 AM",
-      amount: "₹1,200",
-      status: "Pending",
-      payment: "Unpaid",
-      bookedAt: "May 14, 09:00 PM"
-    }
-  ];
-
   const filteredBookings = bookings.filter(b => 
-    b.customer.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    b.id.toLowerCase().includes(searchQuery.toLowerCase())
+    b.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    b.booking_id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -138,32 +117,34 @@ export default function OwnerBookings() {
                       onClick={() => setSelectedBooking(booking)}
                     >
                       <td className="px-8 py-6">
-                        <span className="font-bold text-[#0F172A]">{booking.id}</span>
-                        <p className="text-[10px] text-gray-400 mt-1">{booking.bookedAt}</p>
+                        <span className="font-bold text-[#0F172A]">{booking.booking_id}</span>
+                        <p className="text-[10px] text-gray-400 mt-1">{format(new Date(booking.created_at), "MMM d, hh:mm a")}</p>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                            {booking.customer.charAt(0)}
+                            {booking.customer_name.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-[#0F172A]">{booking.customer}</p>
-                            <p className="text-xs text-gray-400">{booking.phone}</p>
+                            <p className="font-bold text-[#0F172A]">{booking.customer_name}</p>
+                            <p className="text-xs text-gray-400">{booking.customer_email}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-[#0F172A]">{booking.date}</p>
+                          <p className="text-sm font-bold text-[#0F172A]">{format(new Date(booking.start_time), "MMM d, yyyy")}</p>
                           <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {booking.time}
+                            <Clock className="w-3 h-3" /> 
+                            {format(new Date(booking.start_time), "hh:mm a")}
+                            {booking.end_time && ` - ${format(new Date(booking.end_time), "hh:mm a")}`}
                           </p>
                         </div>
                       </td>
-                      <td className="px-8 py-6 font-bold text-secondary">{booking.amount}</td>
+                      <td className="px-8 py-6 font-bold text-secondary">₹{booking.total_price}</td>
                       <td className="px-8 py-6">
                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold tracking-wider ${
-                          booking.status === 'Confirmed' 
+                          booking.status === 'confirmed' 
                             ? 'bg-[#10B981]/10 text-[#10B981]' 
                             : 'bg-[#F59E0B]/10 text-[#F59E0B]'
                         }`}>
@@ -221,37 +202,39 @@ export default function OwnerBookings() {
                   </div>
                   <div>
                     <h2 className="text-3xl font-bold text-[#0F172A] outfit">Booking Details</h2>
-                    <p className="text-primary font-bold tracking-wider">{selectedBooking.id}</p>
+                    <p className="text-primary font-bold tracking-wider">{selectedBooking.booking_id}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   <div className="space-y-8">
                     <DetailItem icon={<User />} label="Customer Info">
-                      <p className="font-bold text-[#0F172A]">{selectedBooking.customer}</p>
-                      <p className="text-sm text-gray-400">{selectedBooking.email}</p>
-                      <p className="text-sm text-gray-400">{selectedBooking.phone}</p>
+                      <p className="font-bold text-[#0F172A]">{selectedBooking.customer_name}</p>
+                      <p className="text-sm text-gray-400">{selectedBooking.customer_email}</p>
                     </DetailItem>
 
                     <DetailItem icon={<Clock />} label="Date & Time Slot">
-                      <p className="font-bold text-[#0F172A]">{selectedBooking.date}</p>
-                      <p className="text-sm text-gray-500 font-medium">{selectedBooking.time}</p>
+                      <p className="font-bold text-[#0F172A]">{format(new Date(selectedBooking.start_time), "EEEE, MMM d, yyyy")}</p>
+                      <p className="text-sm text-gray-500 font-medium">
+                        {format(new Date(selectedBooking.start_time), "hh:mm a")}
+                        {selectedBooking.end_time && ` - ${format(new Date(selectedBooking.end_time), "hh:mm a")}`}
+                      </p>
                     </DetailItem>
                   </div>
 
                   <div className="space-y-8">
                     <DetailItem icon={<CreditCard />} label="Payment & Amount">
-                      <p className="text-2xl font-bold text-secondary mb-1">{selectedBooking.amount}</p>
+                      <p className="text-2xl font-bold text-secondary mb-1">₹{selectedBooking.total_price}</p>
                       <span className={`px-3 py-1 rounded-lg text-[10px] font-bold tracking-widest ${
-                        selectedBooking.payment === 'Paid' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-red-100 text-red-500'
+                        selectedBooking.status === 'confirmed' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-red-100 text-red-500'
                       }`}>
-                        {selectedBooking.payment.toUpperCase()}
+                        {selectedBooking.status.toUpperCase()}
                       </span>
                     </DetailItem>
 
                     <DetailItem icon={<Calendar />} label="Venue Details">
-                      <p className="font-bold text-[#0F172A]">{selectedBooking.ground}</p>
-                      <p className="text-sm text-gray-500 font-medium">{selectedBooking.court} ({selectedBooking.sport})</p>
+                      <p className="font-bold text-[#0F172A]">{selectedBooking.ground_name}</p>
+                      <p className="text-sm text-gray-500 font-medium">{selectedBooking.court_name}</p>
                     </DetailItem>
                   </div>
                 </div>

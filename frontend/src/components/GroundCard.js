@@ -25,9 +25,9 @@ export default function GroundCard({ ground }) {
             Available Now
           </div>
           <div className="flex gap-2">
-            {ground.courts.slice(0, 2).map(court => (
-              <span key={court.id} className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
-                {court.sport_type}
+            {[...new Set(ground.courts.map(c => c.sport_type))].slice(0, 2).map(sport => (
+              <span key={sport} className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">
+                {sport}
               </span>
             ))}
           </div>

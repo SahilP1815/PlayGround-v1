@@ -13,13 +13,24 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
 
 export default function BookingConfirmationPage() {
+  const [booking, setBooking] = useState(null);
+
+  useEffect(() => {
+    const data = localStorage.getItem("last_booking");
+    if (data) {
+      setBooking(JSON.parse(data));
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-32 pb-20 container mx-auto px-6 flex flex-col items-center">
+      <main className="pt-32 pb-20 container mx-auto px-6 flex flex-col items-center text-secondary">
         {/* Success Animation */}
         <motion.div 
           initial={{ scale: 0, opacity: 0 }}
@@ -37,71 +48,73 @@ export default function BookingConfirmationPage() {
         </motion.div>
 
         <h1 className="text-4xl md:text-5xl font-bold outfit mb-4 text-center">Booking Confirmed!</h1>
-        <p className="text-gray-500 text-lg mb-12 text-center max-w-md">
-          Your slot is secured. Get ready to play! A confirmation has been sent to your email.
+        <p className="text-gray-400 text-lg mb-12 text-center max-w-md">
+          Your slot is secured. Get ready to play! You can find your booking details below.
         </p>
 
         {/* Ticket Card */}
-        <motion.div 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="max-w-xl w-full glass rounded-[48px] border border-black/5 overflow-hidden shadow-2xl shadow-black/10"
-        >
-          {/* Top Section */}
-          <div className="bg-secondary p-10 text-white relative">
-            <div className="absolute top-0 right-0 p-10 opacity-10">
-              <Trophy className="w-32 h-32" />
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Booking ID: BK-7294X01</p>
-            <h2 className="text-3xl font-bold outfit mb-1">Elite Sports Arena</h2>
-            <div className="flex items-center gap-2 text-white/60 text-sm">
-              <MapPin className="w-4 h-4" />
-              <span>Satellite, Ahmedabad</span>
-            </div>
-          </div>
-
-          {/* Details */}
-          <div className="p-10 space-y-8">
-            <div className="grid grid-cols-2 gap-8">
-               <div>
-                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Date</p>
-                 <div className="flex items-center gap-2 text-secondary font-bold">
-                   <Calendar className="w-4 h-4 text-primary" />
-                   <span>Sunday, 12th Oct</span>
-                 </div>
-               </div>
-               <div>
-                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Time</p>
-                 <div className="flex items-center gap-2 text-secondary font-bold">
-                   <Clock className="w-4 h-4 text-primary" />
-                   <span>06:00 PM - 07:00 PM</span>
-                 </div>
-               </div>
+        {booking && (
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="max-w-xl w-full glass rounded-[48px] border border-black/5 overflow-hidden shadow-2xl shadow-black/10"
+          >
+            {/* Top Section */}
+            <div className="bg-secondary p-10 text-white relative">
+              <div className="absolute top-0 right-0 p-10 opacity-10">
+                <Trophy className="w-32 h-32" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Venue Secured</p>
+              <h2 className="text-3xl font-bold outfit mb-1">{booking.ground.name}</h2>
+              <div className="flex items-center gap-2 text-white/60 text-sm">
+                <MapPin className="w-4 h-4" />
+                <span>{booking.ground.location.address}</span>
+              </div>
             </div>
 
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Arena & Court</p>
-              <p className="font-bold text-secondary">Champions Turf (7v7) • Court 1</p>
-            </div>
+            {/* Details */}
+            <div className="p-10 space-y-8">
+              <div className="grid grid-cols-2 gap-8">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Date</p>
+                  <div className="flex items-center gap-2 text-secondary font-bold">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span>{format(new Date(booking.slots[0].start_time), "EEEE, do MMM")}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Time</p>
+                  <div className="flex items-center gap-2 text-secondary font-bold">
+                    <Clock className="w-4 h-4 text-primary" />
+                    <span>{booking.slots.map(s => format(new Date(s.start_time), "hh:mm a")).join(", ")}</span>
+                  </div>
+                </div>
+              </div>
 
-            {/* Separator dots */}
-            <div className="flex items-center gap-2">
-              <div className="h-px bg-black/5 flex-1" />
-              <div className="w-2 h-2 rounded-full bg-black/10" />
-              <div className="h-px bg-black/5 flex-1" />
-            </div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Arena & Court</p>
+                <p className="font-bold text-secondary">{booking.court.name} • {booking.court.sport_type}</p>
+              </div>
 
-            <div className="flex items-center justify-between">
-              <button className="flex items-center gap-2 text-sm font-bold text-primary hover:underline">
-                <Download className="w-4 h-4" /> Download Receipt
-              </button>
-              <button className="flex items-center gap-2 text-sm font-bold text-primary hover:underline">
-                <Share2 className="w-4 h-4" /> Share with Squad
-              </button>
+              {/* Separator dots */}
+              <div className="flex items-center gap-2">
+                <div className="h-px bg-black/5 flex-1" />
+                <div className="w-2 h-2 rounded-full bg-black/10" />
+                <div className="h-px bg-black/5 flex-1" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <button className="flex items-center gap-2 text-sm font-bold text-primary hover:underline">
+                  <Download className="w-4 h-4" /> Download Receipt
+                </button>
+                <button className="flex items-center gap-2 text-sm font-bold text-primary hover:underline">
+                  <Share2 className="w-4 h-4" /> Share with Squad
+                </button>
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Next Steps */}
         <div className="mt-16 flex flex-col md:flex-row gap-4">

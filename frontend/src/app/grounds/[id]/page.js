@@ -7,102 +7,84 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { setHours, setMinutes, format } from "date-fns";
 
-const mockGrounds = [
-  {
-    id: "1",
-    name: "Elite Sports Arena",
-    rating: 4.8,
-    reviews: 124,
-    location: { address: "Satellite, Ahmedabad", city: "Ahmedabad" },
-    images: [
-      "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200",
-      "https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=1200"
-    ],
-    amenities: [
-      { icon: <Wind className="w-4 h-4" />, name: "Floodlights" },
-      { icon: <ShieldCheck className="w-4 h-4" />, name: "First Aid" },
-      { icon: <Users className="w-4 h-4" />, name: "Changing Rooms" },
-      { icon: <Trophy className="w-4 h-4" />, name: "Canteen" }
-    ],
-    courts: [
-      { id: "c1", name: "Champions Turf (7v7)", sport_type: "football", base_price: 1500 },
-      { id: "c2", name: "Premier Box (6v6)", sport_type: "cricket", base_price: 1200 }
-    ]
-  },
-  {
-    id: "2",
-    name: "Victory Turf",
-    rating: 4.6,
-    reviews: 89,
-    location: { address: "SG Highway, Ahmedabad", city: "Ahmedabad" },
-    images: [
-      "https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=1200",
-      "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200"
-    ],
-    amenities: [
-      { icon: <Wind className="w-4 h-4" />, name: "Floodlights" },
-      { icon: <ShieldCheck className="w-4 h-4" />, name: "First Aid" },
-      { icon: <Users className="w-4 h-4" />, name: "Changing Rooms" }
-    ],
-    courts: [
-      { id: "c3", name: "Victory Main (6v6)", sport_type: "cricket", base_price: 1000 }
-    ]
-  },
-  {
-    id: "3",
-    name: "Smash Badminton Club",
-    rating: 4.9,
-    reviews: 256,
-    location: { address: "Prahlad Nagar, Ahmedabad", city: "Ahmedabad" },
-    images: [
-      "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1200",
-      "https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=1200"
-    ],
-    amenities: [
-      { icon: <Wind className="w-4 h-4" />, name: "AC" },
-      { icon: <ShieldCheck className="w-4 h-4" />, name: "Pro Shop" },
-      { icon: <Users className="w-4 h-4" />, name: "Coaching" }
-    ],
-    courts: [
-      { id: "c4", name: "Court 1 (Wood)", sport_type: "badminton", base_price: 400 },
-      { id: "c5", name: "Court 2 (Synthetic)", sport_type: "badminton", base_price: 450 }
-    ]
-  }
-];
+// No mock data needed anymore
 
 export default function GroundDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   
-  const currentGround = useMemo(() => {
-    return mockGrounds.find(g => g.id === id) || mockGrounds[0];
+  const [currentGround, setCurrentGround] = useState(null);
+  const [selectedCourt, setSelectedCourt] = useState(null);
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGroundDetails = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/api/grounds/${id}`);
+        if (!response.ok) throw new Error("Ground not found");
+        const data = await response.json();
+        setCurrentGround(data);
+        setSelectedCourt(data.courts[0]);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (id) fetchGroundDetails();
   }, [id]);
 
-  const [selectedCourt, setSelectedCourt] = useState(currentGround.courts[0]);
-  const [selectedSlots, setSelectedSlots] = useState([]);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  useEffect(() => {
+    const fetchBookedSlots = async () => {
+      if (!selectedCourt) return;
+      try {
+        const response = await fetch(`http://localhost:8000/api/bookings/booked-slots/${selectedCourt.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setBookedSlots(data);
+        }
+      } catch (err) {
+        console.error("Error fetching booked slots:", err);
+      }
+    };
+    fetchBookedSlots();
+  }, [selectedCourt, selectedDate]);
 
   // Reset selected court when ground changes
   useEffect(() => {
-    setSelectedCourt(currentGround.courts[0]);
+    if (currentGround?.courts) {
+      setSelectedCourt(currentGround.courts[0]);
+    }
     setSelectedSlots([]);
   }, [currentGround]);
 
   const allDaySlots = useMemo(() => {
+    if (!selectedCourt) return [];
     const slots = [];
     for (let i = 6; i < 24; i++) {
-      const startTime = setMinutes(setHours(new Date(), i), 0);
+      let startTime = setHours(selectedDate, i);
+      startTime = setMinutes(startTime, 0);
+      startTime.setSeconds(0);
+      startTime.setMilliseconds(0);
+      
       const isPeak = i >= 18; // Peak hours after 6 PM
+      const startTimeISO = startTime.toISOString();
+      const isBooked = bookedSlots.includes(startTimeISO);
+      
       slots.push({
         id: `${selectedCourt.id}-${i}`,
-        start_time: startTime.toISOString(),
+        start_time: startTimeISO,
         price: isPeak ? selectedCourt.base_price : Math.round(selectedCourt.base_price * 0.8),
-        status: "available",
-        available: true
+        status: isBooked ? "booked" : "available",
+        available: !isBooked
       });
     }
     return slots;
-  }, [selectedCourt]);
+  }, [selectedCourt, bookedSlots, selectedDate]);
 
   const handleBooking = () => {
     // Check if user is logged in
@@ -113,16 +95,35 @@ export default function GroundDetailPage() {
     }
 
     const bookingData = {
-      ground: currentGround,
-      court: selectedCourt,
+      ground: {
+        id: currentGround.id,
+        name: currentGround.name,
+        images: [currentGround.images[0]],
+        location: currentGround.location
+      },
+      court: {
+        id: selectedCourt.id,
+        name: selectedCourt.name,
+        sport_type: selectedCourt.sport_type
+      },
       slots: selectedSlots,
-      totalBasePrice: selectedSlots.reduce((sum, s) => sum + s.price, 0)
+      totalPrice: selectedSlots.reduce((sum, s) => sum + s.price, 0)
     };
-    localStorage.setItem("pending_booking", JSON.stringify(bookingData));
-    router.push("/checkout");
+    try {
+      localStorage.setItem("pending_booking", JSON.stringify(bookingData));
+      router.push("/checkout");
+    } catch (err) {
+      localStorage.clear(); // Emergency clear if quota exceeded
+      localStorage.setItem("token", token); // Keep the token
+      localStorage.setItem("pending_booking", JSON.stringify(bookingData));
+      router.push("/checkout");
+    }
   };
 
   const totalAmount = selectedSlots.reduce((sum, slot) => sum + slot.price, 0);
+
+  if (isLoading) return <div className="pt-32 text-center outfit text-gray-400">Loading ground details...</div>;
+  if (!currentGround) return <div className="pt-32 text-center outfit text-gray-400">Ground not found</div>;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -135,10 +136,10 @@ export default function GroundDetailPage() {
             {/* Gallery */}
             <div className="grid grid-cols-2 gap-4 h-[400px]">
               <div className="rounded-[40px] overflow-hidden">
-                <img src={currentGround.images[0]} className="w-full h-full object-cover" alt="Ground" />
+                <img src={currentGround.images?.[0] || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1200"} className="w-full h-full object-cover" alt="Ground" />
               </div>
               <div className="rounded-[40px] overflow-hidden">
-                <img src={currentGround.images[1]} className="w-full h-full object-cover" alt="Ground" />
+                <img src={currentGround.images?.[1] || "https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=1200"} className="w-full h-full object-cover" alt="Ground" />
               </div>
             </div>
 
@@ -149,12 +150,12 @@ export default function GroundDetailPage() {
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1.5 text-gray-500">
                     <MapPin className="w-4 h-4 text-primary" />
-                    <span>{currentGround.location.address}</span>
+                    <span>{currentGround.location?.address}</span>
                   </div>
                   <div className="flex items-center gap-1.5 font-bold text-secondary bg-primary/5 px-3 py-1 rounded-lg">
                     <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                    <span>{currentGround.rating}</span>
-                    <span className="text-gray-400 font-medium">({currentGround.reviews} reviews)</span>
+                    <span>4.8</span>
+                    <span className="text-gray-400 font-medium">(124 reviews)</span>
                   </div>
                 </div>
               </div>
@@ -174,60 +175,68 @@ export default function GroundDetailPage() {
                 <ShieldCheck className="w-5 h-5 text-primary" /> Features & Amenities
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {currentGround.amenities.map((item, i) => (
+                {(currentGround.amenities || ["Changing Rooms", "Parking", "Water"]).map((item, i) => (
                   <div key={i} className="flex items-center gap-3 p-4 rounded-2xl bg-surface border border-black/5 group hover:border-primary/20 smooth-transition">
                     <div className="p-2 bg-white rounded-xl shadow-sm text-primary group-hover:bg-primary group-hover:text-white smooth-transition">
-                      {item.icon}
+                      <Trophy className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-medium text-gray-600">{item.name}</span>
+                    <span className="text-sm font-medium text-gray-600">{item}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Selection */}
-            <div>
-              <h2 className="text-xl font-bold outfit text-secondary mb-6">Select Court</h2>
-              <div className="flex gap-4">
-                {currentGround.courts.map((court) => (
-                  <button
-                    key={court.id}
-                    onClick={() => {
-                      setSelectedCourt(court);
-                      setSelectedSlots([]);
-                    }}
-                    className={`px-6 py-4 rounded-2xl border smooth-transition text-left min-w-[200px] ${selectedCourt.id === court.id
-                      ? "border-primary bg-primary/5 shadow-lg shadow-primary/5"
-                      : "border-black/5 hover:border-primary/20 bg-white"
-                      }`}
-                  >
-                    <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${selectedCourt.id === court.id ? "text-primary" : "text-gray-400"}`}>
-                      {court.sport_type}
-                    </p>
-                    <p className="font-bold text-secondary">{court.name}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Right Column: Booking Widget */}
           <div className="lg:col-span-1">
             <div className="glass p-8 rounded-[40px] border border-black/5 shadow-2xl shadow-black/5 sticky top-28">
+              {/* Select Court - Now in the Sidebar */}
               <div className="mb-8">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 ml-1">Select Court</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {(currentGround.courts || []).map((court) => (
+                    <button
+                      key={court.id}
+                      onClick={() => {
+                        setSelectedCourt(court);
+                        setSelectedSlots([]);
+                      }}
+                      className={`p-4 rounded-2xl border smooth-transition text-left ${selectedCourt?.id === court.id
+                        ? "border-primary bg-primary/5 shadow-md shadow-primary/5"
+                        : "border-black/5 hover:border-primary/20 bg-white"
+                        }`}
+                    >
+                      <p className={`text-[9px] uppercase font-bold tracking-widest mb-1 ${selectedCourt?.id === court.id ? "text-primary" : "text-gray-400"}`}>
+                        {court.sport_type}
+                      </p>
+                      <p className="font-bold text-secondary text-xs truncate">{court.name}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8 pt-8 border-t border-black/5">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-2xl font-bold text-secondary">Book Your Slot</h3>
                   <div className="flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] font-bold text-green-600 uppercase tracking-tight">18 Slots Available</span>
+                    <span className="text-[10px] font-bold text-green-600 uppercase tracking-tight">
+                      {allDaySlots.filter(s => s.available).length} Slots Available
+                    </span>
                   </div>
                 </div>
-                <p className="text-gray-500 text-sm">Choose time slots for {selectedCourt.name}</p>
+                <p className="text-gray-500 text-sm">Pick times for {selectedCourt?.name}</p>
               </div>
 
               <SlotPicker
                 slots={allDaySlots}
                 multiSelect={true}
+                selectedDate={selectedDate}
+                onDateChange={(date) => {
+                  setSelectedDate(date);
+                  setSelectedSlots([]);
+                }}
                 onSelect={(selectedObjects) => {
                   setSelectedSlots(selectedObjects);
                 }}

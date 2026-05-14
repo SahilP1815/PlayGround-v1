@@ -1,19 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Clock, CheckCircle2, MapPin, Sun, Sunrise, Moon, ChevronDown, ChevronUp } from "lucide-react";
 import { format, addDays, getHours, getMinutes } from "date-fns";
 
-export default function SlotPicker({ court, slots, onSelect, groundLocation, multiSelect = false }) {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+export default function SlotPicker({ court, slots, onSelect, groundLocation, multiSelect = false, selectedDate, onDateChange }) {
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
   const [openSections, setOpenSections] = useState({ morning: true, afternoon: false, evening: false });
 
+  // Reset selection when slots change (e.g., when switching courts or dates)
+  useEffect(() => {
+    setSelectedSlotIds([]);
+  }, [slots]);
+
   const dates = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i));
 
-  const filteredSlots = slots.filter(slot => 
-    format(new Date(slot.start_time), "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
-  );
+  // No need to filter by date here anymore as 'slots' prop is already filtered/generated for the specific date in parent
+  const filteredSlots = slots;
 
   // Group slots by time of day
   const groupedSlots = {
@@ -63,7 +66,7 @@ export default function SlotPicker({ court, slots, onSelect, groundLocation, mul
           <button
             key={date.toString()}
             onClick={() => {
-              setSelectedDate(date);
+              onDateChange(date);
               setSelectedSlotIds([]);
               onSelect([]);
             }}
@@ -182,7 +185,7 @@ function DropdownSlotGroup({ title, subtitle, icon, slots, selectedIds, onClick,
               {selectedCount} selected
             </span>
           )}
-          <span className="text-xs text-gray-400 font-medium">{slots.length} slots</span>
+          <span className="text-xs text-gray-400 font-medium">{slots.filter(s => s.available).length} slots</span>
           {isOpen ? (
             <ChevronUp className="w-4 h-4 text-gray-400" />
           ) : (

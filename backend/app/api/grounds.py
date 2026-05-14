@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.models.ground import Ground, Court
 from app.models.user import User
-from app.schemas.ground import GroundCreate, GroundResponse
+from app.schemas.ground import GroundCreate, GroundResponse, GroundUpdate
 from app.api.deps import get_current_user, get_current_active_owner
 from typing import List, Any
 
@@ -24,6 +24,7 @@ async def create_ground(
         description=ground_in.description,
         location=ground_in.location.model_dump(),
         images=ground_in.images,
+        amenities=ground_in.amenities,
         courts=courts
     )
     await new_ground.insert()
@@ -47,3 +48,45 @@ async def get_ground(ground_id: str) -> Any:
     if not ground:
         raise HTTPException(status_code=404, detail="Ground not found")
     return ground
+
+@router.put("/{ground_id}", response_model=GroundResponse)
+async def update_ground(
+    ground_id: str,
+    ground_in: GroundUpdate,
+    current_owner: User = Depends(get_current_active_owner)
+) -> Any:
+    ground = await Ground.get(ground_id)
+    if not ground:
+        raise HTTPException(status_code=404, detail="Ground not found")
+    
+    if ground.owner_id != str(current_owner.id):
+        raise HTTPException(status_code=403, detail="Not authorized to update this ground")
+    
+    update_data = ground_in.model_dump(exclude_unset=True)
+    
+    if "courts" in update_data and update_data["courts"] is not None:
+        update_data["courts"] = [
+            Court(name=c["name"], sport_type=c["sport_type"], base_price=c["base_price"])
+            for c in update_data["courts"]
+        ]
+    
+    for field, value in update_data.items():
+        setattr(ground, field, value)
+    
+    await ground.save()
+    return ground
+
+@router.delete("/{ground_id}")
+async def delete_ground(
+    ground_id: str,
+    current_owner: User = Depends(get_current_active_owner)
+) -> Any:
+    ground = await Ground.get(ground_id)
+    if not ground:
+        raise HTTPException(status_code=404, detail="Ground not found")
+    
+    if ground.owner_id != str(current_owner.id):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this ground")
+    
+    await ground.delete()
+    return {"message": "Ground deleted successfully"}

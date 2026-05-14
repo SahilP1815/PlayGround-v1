@@ -19,6 +19,9 @@ export default function Home() {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  const [grounds, setGrounds] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     const role = localStorage.getItem("userRole");
     if (role === "owner") {
@@ -26,6 +29,24 @@ export default function Home() {
       router.push("/owner/dashboard");
     }
   }, [router]);
+
+  useEffect(() => {
+    const fetchGrounds = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/grounds/");
+        if (response.ok) {
+          const data = await response.json();
+          // Sort or filter for "Trending" (for now just take first few)
+          setGrounds(data.slice(0, 6));
+        }
+      } catch (err) {
+        console.error("Error fetching grounds:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchGrounds();
+  }, []);
 
   if (isRedirecting) {
     return (
@@ -80,95 +101,55 @@ export default function Home() {
 
         {/* Mobile Slideshow / Desktop Grid */}
         <div className="flex md:grid md:grid-cols-3 gap-8 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 no-scrollbar snap-x snap-mandatory -mx-6 px-6 md:mx-0 md:px-0">
-          <div className="min-w-[85vw] md:min-w-0 snap-center">
-            <div className="glass-card rounded-[32px] overflow-hidden group h-full">
-              <Link href="/grounds/1" className="relative h-64 overflow-hidden block">
-                <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800" className="w-full h-full object-cover group-hover:scale-110 smooth-transition" />
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
-                  Featured
-                </div>
-              </Link>
-              <div className="p-8">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-secondary mb-1">Elite Sports Arena</h3>
-                    <div className="flex items-center gap-1.5 text-gray-400 text-xs">
-                      <MapPin className="w-3.5 h-3.5 text-primary" />
-                      <span>Satellite, Ahmedabad</span>
+          {isLoading ? (
+            [1, 2, 3].map(i => (
+              <div key={i} className="min-w-[85vw] md:min-w-0 h-96 bg-surface animate-pulse rounded-[32px]" />
+            ))
+          ) : grounds.length > 0 ? (
+            grounds.map((ground) => (
+              <div key={ground.id} className="min-w-[85vw] md:min-w-0 snap-center">
+                <div className="glass-card rounded-[32px] overflow-hidden group h-full flex flex-col">
+                  <Link href={`/grounds/${ground.id}`} className="relative h-64 overflow-hidden block">
+                    <img 
+                      src={ground.images?.[0] || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800"} 
+                      className="w-full h-full object-cover group-hover:scale-110 smooth-transition" 
+                    />
+                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
+                      Trending
+                    </div>
+                  </Link>
+                  <div className="p-8 flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-secondary mb-1">{ground.name}</h3>
+                        <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+                          <MapPin className="w-3.5 h-3.5 text-primary" />
+                          <span>{ground.location?.address || "Ahmedabad"}</span>
+                        </div>
+                      </div>
+                      <div className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold">New</div>
+                    </div>
+                    <div className="mt-auto pt-6 border-t border-black/5 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
+                        <p className="text-lg font-bold text-secondary">
+                          ₹{ground.courts?.[0]?.base_price || 0}
+                          <span className="text-xs text-gray-400 font-medium">/hr</span>
+                        </p>
+                      </div>
+                      <Link href={`/grounds/${ground.id}`} className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">
+                        Book Now
+                      </Link>
                     </div>
                   </div>
-                  <div className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold">4.8 ★</div>
-                </div>
-                <div className="flex items-center justify-between pt-6 border-t border-black/5">
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
-                    <p className="text-lg font-bold text-secondary">₹1,200<span className="text-xs text-gray-400 font-medium">/hr</span></p>
-                  </div>
-                  <Link href="/grounds/1" className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</Link>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center text-gray-400">
+              No venues listed yet. Be the first to list!
             </div>
-          </div>
-
-          <div className="min-w-[85vw] md:min-w-0 snap-center">
-            <div className="glass-card rounded-[32px] overflow-hidden group h-full">
-              <Link href="/grounds/2" className="relative h-64 overflow-hidden block">
-                <img src="https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=800" className="w-full h-full object-cover group-hover:scale-110 smooth-transition" />
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
-                  Popular
-                </div>
-              </Link>
-              <div className="p-8">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-secondary mb-1">Victory Turf</h3>
-                    <div className="flex items-center gap-1.5 text-gray-400 text-xs">
-                      <MapPin className="w-3.5 h-3.5 text-primary" />
-                      <span>SG Highway, Ahmedabad</span>
-                    </div>
-                  </div>
-                  <div className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold">4.6 ★</div>
-                </div>
-                <div className="flex items-center justify-between pt-6 border-t border-black/5">
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
-                    <p className="text-lg font-bold text-secondary">₹1,000<span className="text-xs text-gray-400 font-medium">/hr</span></p>
-                  </div>
-                  <Link href="/grounds/2" className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="min-w-[85vw] md:min-w-0 snap-center">
-            <div className="glass-card rounded-[32px] overflow-hidden group h-full">
-              <Link href="/grounds/3" className="relative h-64 overflow-hidden block">
-                <img src="https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=800" className="w-full h-full object-cover group-hover:scale-110 smooth-transition" />
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
-                  Top Rated
-                </div>
-              </Link>
-              <div className="p-8">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-secondary mb-1">Smash Badminton Club</h3>
-                    <div className="flex items-center gap-1.5 text-gray-400 text-xs">
-                      <MapPin className="w-3.5 h-3.5 text-primary" />
-                      <span>Prahlad Nagar, Ahmedabad</span>
-                    </div>
-                  </div>
-                  <div className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-bold">4.9 ★</div>
-                </div>
-                <div className="flex items-center justify-between pt-6 border-t border-black/5">
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-0.5">Starting From</p>
-                    <p className="text-lg font-bold text-secondary">₹400<span className="text-xs text-gray-400 font-medium">/hr</span></p>
-                  </div>
-                  <Link href="/grounds/3" className="bg-secondary text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary smooth-transition">Book Now</Link>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 

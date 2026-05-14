@@ -28,9 +28,10 @@ class Slot(Document):
 
 class Booking(Document):
     user_id: str
-    slot_id: str
     ground_id: str
     court_id: str
+    start_time: datetime
+    end_time: Optional[datetime] = None
     total_price: float
     status: BookingStatus = BookingStatus.PENDING
     booking_id: str # Human readable ID
