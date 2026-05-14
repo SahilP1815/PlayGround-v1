@@ -1,7 +1,11 @@
+"use client";
+
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import { Trophy, Zap, Clock, Shield, ArrowRight, MapPin } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const sports = [
   { name: "Cricket", icon: "🏏", count: 42 },
@@ -12,6 +16,24 @@ const sports = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    if (role === "owner") {
+      setIsRedirecting(true);
+      router.push("/owner/dashboard");
+    }
+  }, [router]);
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col">
       <Navbar />
@@ -60,12 +82,12 @@ export default function Home() {
         <div className="flex md:grid md:grid-cols-3 gap-8 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 no-scrollbar snap-x snap-mandatory -mx-6 px-6 md:mx-0 md:px-0">
           <div className="min-w-[85vw] md:min-w-0 snap-center">
             <div className="glass-card rounded-[32px] overflow-hidden group h-full">
-              <div className="relative h-64 overflow-hidden">
+              <Link href="/grounds/1" className="relative h-64 overflow-hidden block">
                 <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800" className="w-full h-full object-cover group-hover:scale-110 smooth-transition" />
                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
                   Featured
                 </div>
-              </div>
+              </Link>
               <div className="p-8">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -90,12 +112,12 @@ export default function Home() {
 
           <div className="min-w-[85vw] md:min-w-0 snap-center">
             <div className="glass-card rounded-[32px] overflow-hidden group h-full">
-              <div className="relative h-64 overflow-hidden">
+              <Link href="/grounds/2" className="relative h-64 overflow-hidden block">
                 <img src="https://images.unsplash.com/photo-1510566337590-2fc1f21d0faa?q=80&w=800" className="w-full h-full object-cover group-hover:scale-110 smooth-transition" />
                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
                   Popular
                 </div>
-              </div>
+              </Link>
               <div className="p-8">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -120,12 +142,12 @@ export default function Home() {
 
           <div className="min-w-[85vw] md:min-w-0 snap-center">
             <div className="glass-card rounded-[32px] overflow-hidden group h-full">
-              <div className="relative h-64 overflow-hidden">
+              <Link href="/grounds/3" className="relative h-64 overflow-hidden block">
                 <img src="https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=800" className="w-full h-full object-cover group-hover:scale-110 smooth-transition" />
                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-lg text-[10px] font-bold text-secondary uppercase tracking-wider shadow-sm">
                   Top Rated
                 </div>
-              </div>
+              </Link>
               <div className="p-8">
                 <div className="flex justify-between items-start mb-4">
                   <div>

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Trophy, User, Search, Menu, LogOut, ChevronDown, Calendar, Settings, LayoutDashboard, MapPin } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
-export default function Navbar() {
+export default function Navbar({ onMenuClick, sidebarOpen }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
@@ -91,14 +91,26 @@ export default function Navbar() {
       }`}
     >
       <div className="container mx-auto px-4 flex items-center justify-between max-w-[1400px]">
-        <Link href="/" className="flex items-center space-x-2 shrink-0">
-          <div className="bg-primary p-1.5 rounded-lg">
-            <Trophy className="text-white w-6 h-6" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight outfit text-secondary">
-            Play<span className="text-primary">Ground</span>
-          </span>
-        </Link>
+        <div className="flex items-center gap-4">
+          {onMenuClick && (
+            <button 
+              onClick={onMenuClick}
+              className="p-2 hover:bg-black/5 rounded-xl smooth-transition"
+            >
+              <Menu className={`w-6 h-6 ${sidebarOpen ? "text-primary" : "text-gray-400"}`} />
+            </button>
+          )}
+          {(!pathname?.startsWith("/owner") || isScrolled) && (
+            <Link href={userRole === "owner" ? "/owner/dashboard" : "/"} className="flex items-center space-x-2 shrink-0">
+              <div className="bg-primary p-1.5 rounded-lg">
+                <Trophy className="text-white w-6 h-6" />
+              </div>
+              <span className="text-2xl font-bold tracking-tight outfit text-secondary">
+                Play<span className="text-primary">Ground</span>
+              </span>
+            </Link>
+          )}
+        </div>
 
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center space-x-1 text-sm font-medium border-r border-black/5 pr-6 mr-2">
@@ -162,17 +174,21 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <button className="lg:hidden p-2 hover:bg-surface rounded-full smooth-transition text-gray-600">
-              <Search className="w-5 h-5" />
-            </button>
-            <div className="hidden lg:flex items-center relative mr-2 group">
-              <Search className="absolute left-4 w-4 h-4 text-gray-400 group-focus-within:text-primary smooth-transition" />
-              <input 
-                type="text" 
-                placeholder="Search for grounds..." 
-                className="bg-gray-50/50 border border-black/5 rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 focus:w-72 smooth-transition hover:bg-white hover:shadow-xl hover:shadow-black/5 glass"
-              />
-            </div>
+            {!pathname?.startsWith("/owner") && (
+              <>
+                <button className="lg:hidden p-2 hover:bg-surface rounded-full smooth-transition text-gray-600">
+                  <Search className="w-5 h-5" />
+                </button>
+                <div className="hidden lg:flex items-center relative mr-2 group">
+                  <Search className="absolute left-4 w-4 h-4 text-gray-400 group-focus-within:text-primary smooth-transition" />
+                  <input 
+                    type="text" 
+                    placeholder="Search for grounds..." 
+                    className="bg-gray-50/50 border border-black/5 rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 focus:w-72 smooth-transition hover:bg-white hover:shadow-xl hover:shadow-black/5 glass"
+                  />
+                </div>
+              </>
+            )}
 
             {isLoggedIn ? (
               <div className="relative" ref={dropdownRef}>
@@ -254,9 +270,11 @@ export default function Navbar() {
               </Link>
             )}
 
-            <button className="md:hidden p-2 text-secondary hover:bg-surface rounded-lg smooth-transition">
-              <Menu className="w-6 h-6" />
-            </button>
+            {!pathname?.startsWith("/owner") && (
+              <button className="md:hidden p-2 text-secondary hover:bg-surface rounded-lg smooth-transition">
+                <Menu className="w-6 h-6" />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 from app.models.ground import SportType
 from uuid import UUID
@@ -35,3 +35,9 @@ class GroundResponse(GroundBase):
 
     class Config:
         from_attributes = True
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_objectid_to_str(cls, v):
+        return str(v)
+

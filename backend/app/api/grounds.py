@@ -22,12 +22,19 @@ async def create_ground(
         owner_id=str(current_owner.id),
         name=ground_in.name,
         description=ground_in.description,
-        location=ground_in.location,
+        location=ground_in.location.model_dump(),
         images=ground_in.images,
         courts=courts
     )
     await new_ground.insert()
     return new_ground
+
+@router.get("/my", response_model=List[GroundResponse])
+async def list_my_grounds(
+    current_owner: User = Depends(get_current_active_owner)
+) -> Any:
+    grounds = await Ground.find(Ground.owner_id == str(current_owner.id)).to_list()
+    return grounds
 
 @router.get("/", response_model=List[GroundResponse])
 async def list_grounds() -> Any:
