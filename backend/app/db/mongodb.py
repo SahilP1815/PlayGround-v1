@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 from app.models.user import User
 from app.models.ground import Ground
 from app.models.booking import Booking, Slot
+from app.models.review import Review
+from app.models.dispute import Dispute
+from app.models.handler import Handler
 
 load_dotenv()
 
@@ -33,7 +36,10 @@ async def init_db():
                 User,
                 Ground,
                 Booking,
-                Slot
+                Slot,
+                Review,
+                Dispute,
+                Handler
             ],
         )
         print("Beanie initialized successfully.")

@@ -5,9 +5,11 @@ import { CreditCard, Wallet, Smartphone, ArrowRight, ShieldCheck, Info } from "l
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import { useToast } from "@/context/ToastContext";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingData, setBookingData] = useState(null);
@@ -31,7 +33,7 @@ export default function CheckoutPage() {
       }
 
       // 1. Call Backend to create real booking
-      const response = await fetch("http://localhost:8000/api/bookings/", {
+      const response = await fetch("/api/bookings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -60,9 +62,10 @@ export default function CheckoutPage() {
         localStorage.removeItem("pending_booking"); // Clear pending first to make room
       }
       localStorage.removeItem("pending_booking");
+      showToast("Booking confirmed successfully!", "success");
       router.push("/booking-confirmation");
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, "error");
     } finally {
       setIsProcessing(false);
     }
@@ -74,71 +77,83 @@ export default function CheckoutPage() {
   const finalTotal = bookingData.totalPrice + serviceFee;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-50">
       <Navbar />
 
-      <main className="pt-24 pb-20 container mx-auto px-6 max-w-4xl">
-        <h1 className="text-4xl font-bold outfit mb-12 text-secondary">Secure Checkout</h1>
+      <main className="max-w-[1200px] mx-auto pt-20 md:pt-32 pb-20 px-4 sm:px-6">
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-8 sm:mb-10 tracking-tight">
+          Secure Checkout
+        </h1>
 
-        <div className="grid md:grid-cols-2 gap-12">
-          {/* Left: Summary */}
-          <div className="order-2 md:order-1">
-            <h2 className="text-xl font-bold outfit mb-6 flex items-center gap-2 text-secondary">
-              <Info className="w-5 h-5 text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
+          {/* Left Column: Summary */}
+          <div className="flex flex-col gap-6">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <Info className="w-5 h-5 text-teal-600" />
               Booking Summary
             </h2>
 
-            <div className="glass p-6 rounded-3xl border border-black/5 mb-8">
+            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-black/5 shadow-xl shadow-black/5">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-xl overflow-hidden">
-                  <img src={bookingData.ground.images[0] || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=100"} className="w-full h-full object-cover" />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-slate-900 shrink-0">
+                  <img 
+                    src={
+                      bookingData.ground.images?.[0]
+                        ? (bookingData.ground.images[0].startsWith("http") || bookingData.ground.images[0].startsWith("data:")
+                            ? bookingData.ground.images[0]
+                            : `${bookingData.ground.images[0]}`)
+                        : "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=200"
+                    } 
+                    className="w-full h-full object-cover"
+                    alt={bookingData.ground.name}
+                  />
                 </div>
-                <div>
-                  <h3 className="font-bold text-secondary">{bookingData.ground.name}</h3>
-                  <p className="text-xs text-gray-400">{bookingData.court.name}</p>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-extrabold text-slate-900 truncate mb-1">{bookingData.ground.name}</h3>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 truncate">{bookingData.court.name}</p>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-6 border-t border-black/5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">Date</span>
-                  <span className="font-bold text-secondary">{format(new Date(bookingData.slots[0].start_time), "EEEE, do MMM")}</span>
+              <div className="flex flex-col gap-4 pt-5 border-t border-black/5">
+                <div className="flex justify-between text-sm items-center gap-4">
+                  <span className="text-slate-500 font-medium shrink-0">Date</span>
+                  <span className="font-bold text-slate-900 truncate text-right">{format(new Date(bookingData.slots[0].start_time), "EEEE, do MMM")}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">Time Slots</span>
-                  <span className="font-bold text-secondary text-right">
+                <div className="flex justify-between text-sm items-center gap-4">
+                  <span className="text-slate-500 font-medium shrink-0">Time Slots</span>
+                  <span className="font-bold text-slate-900 truncate text-right min-w-0">
                     {bookingData.slots.map(s => format(new Date(s.start_time), "hh:mm a")).join(", ")}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">Base Price</span>
-                  <span className="font-bold text-secondary">₹{bookingData.totalPrice}</span>
+                <div className="flex justify-between text-sm items-center gap-4">
+                  <span className="text-slate-500 font-medium shrink-0">Base Price</span>
+                  <span className="font-bold text-slate-900 shrink-0">₹{bookingData.totalPrice}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-medium">Service Fee</span>
-                  <span className="font-bold text-secondary">₹{serviceFee}</span>
+                <div className="flex justify-between text-sm items-center gap-4">
+                  <span className="text-slate-500 font-medium shrink-0">Service Fee</span>
+                  <span className="font-bold text-slate-900 shrink-0">₹{serviceFee}</span>
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-black/5 flex justify-between items-center">
-                <span className="font-bold text-lg text-secondary">Total Amount</span>
-                <span className="text-2xl font-bold text-primary outfit">₹{finalTotal}</span>
+              <div className="mt-6 pt-5 border-t border-black/5 flex justify-between items-center gap-4">
+                <span className="font-extrabold text-base text-slate-900 shrink-0">Total Amount</span>
+                <span className="text-2xl font-black text-teal-600 shrink-0">₹{finalTotal}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-              <p className="text-xs text-gray-500 font-medium">
+            <div className="flex items-center gap-3 p-4 bg-teal-50/50 rounded-2xl border border-teal-100 text-center sm:text-left text-teal-600">
+              <ShieldCheck className="w-5 h-5 shrink-0 hidden sm:block" />
+              <p className="text-xs font-bold leading-relaxed w-full">
                 Secure SSL encrypted payment. Cancel up to 12 hours before for a full refund.
               </p>
             </div>
           </div>
 
-          {/* Right: Payment */}
-          <div className="order-1 md:order-2">
-            <h2 className="text-xl font-bold outfit mb-6 text-secondary">Payment Method</h2>
+          {/* Right Column: Payment */}
+          <div className="flex flex-col gap-6 mt-4 md:mt-0">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">Payment Method</h2>
 
-            <div className="space-y-4 mb-12">
+            <div className="flex flex-col gap-3 sm:gap-4">
               <PaymentOption
                 id="upi"
                 icon={<Smartphone className="w-5 h-5" />}
@@ -165,8 +180,11 @@ export default function CheckoutPage() {
             <button
               onClick={handlePayment}
               disabled={isProcessing}
-              className={`w-full py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-lg shadow-primary/20 ${isProcessing ? "bg-surface text-gray-400" : "bg-secondary hover:bg-primary text-white"
-                }`}
+              className={`w-full min-h-[56px] px-6 py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all mt-4 ${
+                isProcessing 
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed" 
+                  : "bg-slate-900 text-white hover:bg-slate-800 shadow-xl shadow-slate-900/10 cursor-pointer"
+              }`}
             >
               {isProcessing ? (
                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -185,14 +203,21 @@ function PaymentOption({ icon, title, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full p-5 rounded-2xl border text-left flex items-center gap-4 smooth-transition ${active
-        ? "bg-primary/5 border-primary shadow-lg shadow-primary/5"
-        : "bg-surface border-black/5 hover:border-black/10"
-        }`}
+      className={`w-full min-h-[60px] p-4 sm:p-5 rounded-2xl flex items-center gap-3 sm:gap-4 text-left transition-all ${
+        active 
+          ? "border-2 border-teal-600 bg-teal-50/50 shadow-md shadow-teal-600/5" 
+          : "border border-black/5 bg-white hover:border-black/10"
+      }`}
     >
-      <div className={`${active ? "text-primary" : "text-gray-400"}`}>{icon}</div>
-      <span className={`text-sm font-bold ${active ? "text-secondary" : "text-gray-400"}`}>{title}</span>
-      <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center ${active ? "border-primary bg-primary" : "border-black/10"}`}>
+      <div className={`flex items-center shrink-0 ${active ? "text-teal-600" : "text-slate-400"}`}>
+        {icon}
+      </div>
+      <span className={`text-sm sm:text-base font-bold truncate min-w-0 ${active ? "text-slate-900" : "text-slate-500"}`}>
+        {title}
+      </span>
+      <div className={`ml-auto shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+        active ? "border-teal-600 bg-teal-600" : "border-black/10 bg-transparent"
+      }`}>
         {active && <div className="w-2 h-2 rounded-full bg-white" />}
       </div>
     </button>

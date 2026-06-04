@@ -1,28 +1,35 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
-import OwnerSidebar from "@/components/OwnerSidebar";
+import { format } from "date-fns";
 import { 
   Search, 
   Filter, 
-  Calendar, 
   Clock, 
   User, 
   CreditCard, 
   X,
-  ExternalLink
+  ExternalLink,
+  Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { format } from "date-fns";
+import OwnerSidebar from "@/components/OwnerSidebar";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import "../owner.css";
+
+const maskEmail = (email) => {
+  if (!email || !email.includes("@")) return email || "";
+  const [local, domain] = email.split("@");
+  const masked = local.charAt(0) + "****";
+  return `${masked}@${domain}`;
+};
 
 export default function OwnerBookings() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("upcoming");
 
   useEffect(() => {
     const fetchOwnerBookings = async () => {
@@ -30,10 +37,8 @@ export default function OwnerBookings() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const response = await fetch("http://localhost:8000/api/bookings/owner", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+        const response = await fetch("/api/bookings/owner", {
+          headers: { "Authorization": `Bearer ${token}` }
         });
         if (response.ok) {
           const data = await response.json();
@@ -48,223 +53,205 @@ export default function OwnerBookings() {
     fetchOwnerBookings();
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const filteredBookings = bookings.filter(b => 
-    b.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    b.booking_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const now = new Date();
+  const filteredBookings = bookings
+    .filter(b => {
+      const matchSearch = b.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          b.booking_id.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchSearch) return false;
+      
+      const startTime = new Date(b.start_time);
+      if (activeTab === "upcoming") {
+        return startTime > now;
+      } else {
+        return startTime <= now;
+      }
+    })
+    .sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex overflow-x-hidden relative">
-      <OwnerSidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
-        hidden={isScrolled}
-      />
+    <ProtectedRoute role="owner">
+      <div className="pg-body">
+        <OwnerSidebar />
+      
+      <main className="pg-main">
+        <div className="pg-topbar">
+          <div className="pg-breadcrumb">Owner Panel › <span>Bookings</span></div>
+          <div className="pg-topbar-right">
+            <div className="pg-status-chip"><div className="pg-pulse" /> Live Bookings</div>
+          </div>
+        </div>
 
-      <div className={`flex-1 smooth-transition ${isScrolled ? "ml-0" : (sidebarCollapsed ? "ml-[78px]" : "ml-[272px]")}`}>
-        <Navbar />
-        
-        <main className="pt-32 pb-20 max-w-6xl mx-auto px-10">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+        <div className="pg-container">
+          <div className="pg-page-header">
             <div>
-              <h1 className="text-4xl font-bold text-[#0F172A] outfit mb-2">Bookings</h1>
-              <p className="text-gray-400 font-medium text-lg">Manage all your ground reservations here.</p>
+              <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>Ground Bookings</h1>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>Track and manage all reservations across your venues.</p>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary smooth-transition" />
+            <div className="pg-header-actions" style={{ display: "flex", gap: 12 }}>
+              <div className="pg-search-wrapper" style={{ position: "relative" }}>
+                <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
                 <input 
                   type="text" 
-                  placeholder="Search by ID or Name..." 
+                  placeholder="Search bookings..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-white border border-gray-100 rounded-2xl py-3 pl-12 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 smooth-transition shadow-sm"
+                  className="pg-search-input"
+                  style={{ padding: "12px 16px 12px 40px", borderRadius: 12, border: "1.5px solid var(--border)", fontSize: 14, outline: "none" }}
                 />
               </div>
-              <button className="bg-white p-3 rounded-2xl border border-gray-100 text-gray-400 hover:text-primary smooth-transition shadow-sm">
-                <Filter className="w-5 h-5" />
-              </button>
+              <button className="pg-btn pg-btn-outline" style={{ padding: 12 }}><Filter size={18} /></button>
             </div>
           </div>
 
-          <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
+          <div style={{ display: "flex", background: "#f1f5f9", padding: "6px", borderRadius: "14px", border: "1.5px solid var(--border)", marginBottom: "24px", width: "fit-content" }}>
+            <button
+              onClick={() => setActiveTab("upcoming")}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "10px",
+                fontSize: "13px",
+                fontWeight: 700,
+                border: "none",
+                cursor: "pointer",
+                background: activeTab === "upcoming" ? "white" : "transparent",
+                color: activeTab === "upcoming" ? "var(--text-primary)" : "var(--text-secondary)",
+                boxShadow: activeTab === "upcoming" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                transition: "all 0.2s ease"
+              }}
+            >
+              Upcoming Bookings
+            </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "10px",
+                fontSize: "13px",
+                fontWeight: 700,
+                border: "none",
+                cursor: "pointer",
+                background: activeTab === "history" ? "white" : "transparent",
+                color: activeTab === "history" ? "var(--text-primary)" : "var(--text-secondary)",
+                boxShadow: activeTab === "history" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                transition: "all 0.2s ease"
+              }}
+            >
+              Booking History
+            </button>
+          </div>
+
+          <div className="pg-card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "600px" }}>
                 <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-gray-50">
-                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-gray-400">Booking ID</th>
-                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-gray-400">Customer</th>
-                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-gray-400">Date & Slot</th>
-                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-gray-400">Amount</th>
-                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-gray-400">Status</th>
-                    <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-gray-400">Action</th>
+                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid var(--border)" }}>
+                    <th style={{ padding: "16px 24px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>ID</th>
+                    <th style={{ padding: "16px 24px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Customer</th>
+                    <th style={{ padding: "16px 24px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Date & Slot</th>
+                    <th style={{ padding: "16px 24px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Amount</th>
+                    <th style={{ padding: "16px 24px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Status</th>
+                    <th style={{ padding: "16px 24px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody style={{ divideY: "1px solid var(--border)" }}>
                   {filteredBookings.map((booking) => (
                     <tr 
                       key={booking.id} 
-                      className="hover:bg-gray-50/50 smooth-transition cursor-pointer group"
+                      style={{ borderBottom: "1px solid var(--border)", cursor: "pointer" }}
                       onClick={() => setSelectedBooking(booking)}
                     >
-                      <td className="px-8 py-6">
-                        <span className="font-bold text-[#0F172A]">{booking.booking_id}</span>
-                        <p className="text-[10px] text-gray-400 mt-1">{format(new Date(booking.created_at), "MMM d, hh:mm a")}</p>
+                      <td style={{ padding: "16px 24px" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{booking.booking_id}</span>
+                        <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{format(new Date(booking.created_at), "MMM d")}</p>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                      <td style={{ padding: "16px 24px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--teal-light)", color: "var(--teal)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12 }}>
                             {booking.customer_name.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-[#0F172A]">{booking.customer_name}</p>
-                            <p className="text-xs text-gray-400">{booking.customer_email}</p>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{booking.customer_name}</p>
+                            <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{maskEmail(booking.customer_email)}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="space-y-1">
-                          <p className="text-sm font-bold text-[#0F172A]">{format(new Date(booking.start_time), "MMM d, yyyy")}</p>
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> 
-                            {format(new Date(booking.start_time), "hh:mm a")}
-                            {booking.end_time && ` - ${format(new Date(booking.end_time), "hh:mm a")}`}
-                          </p>
-                        </div>
+                      <td style={{ padding: "16px 24px", whiteSpace: "nowrap" }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{format(new Date(booking.start_time), "MMM d, yyyy")}</p>
+                        <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                          {booking.end_time 
+                            ? `${format(new Date(booking.start_time), "hh:mm a")} - ${format(new Date(booking.end_time), "hh:mm a")}`
+                            : `${format(new Date(booking.start_time), "hh:mm a")} onwards`}
+                        </p>
                       </td>
-                      <td className="px-8 py-6 font-bold text-secondary">₹{booking.total_price}</td>
-                      <td className="px-8 py-6">
-                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-bold tracking-wider ${
-                          booking.status === 'confirmed' 
-                            ? 'bg-[#10B981]/10 text-[#10B981]' 
-                            : 'bg-[#F59E0B]/10 text-[#F59E0B]'
-                        }`}>
+                      <td style={{ padding: "16px 24px", fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>₹{booking.total_price}</td>
+                      <td style={{ padding: "16px 24px" }}>
+                        <span style={{ padding: "4px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: booking.status === 'confirmed' ? "var(--green-light)" : "var(--orange-light)", color: booking.status === 'confirmed' ? "var(--green)" : "var(--orange)" }}>
                           {booking.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-8 py-6">
-                        <button className="p-2 text-gray-400 hover:text-primary smooth-transition group-hover:scale-110">
-                          <ExternalLink className="w-5 h-5" />
-                        </button>
-                      </td>
+                      <td style={{ padding: "16px 24px" }}><ExternalLink size={16} color="var(--text-muted)" /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            
-            {filteredBookings.length === 0 && (
-              <div className="py-20 text-center">
-                <p className="text-gray-400 font-medium">No bookings found matching your search.</p>
-              </div>
+            {filteredBookings.length === 0 && !isLoading && (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>No bookings found</div>
             )}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
 
-      {/* Booking Details Modal */}
       <AnimatePresence>
         {selectedBooking && (
           <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedBooking(null)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-[40px] shadow-2xl z-[101] overflow-hidden"
-            >
-              <div className="relative p-10">
-                <button 
-                  onClick={() => setSelectedBooking(null)}
-                  className="absolute right-8 top-8 p-2 hover:bg-gray-100 rounded-full smooth-transition"
-                >
-                  <X className="w-6 h-6 text-gray-400" />
-                </button>
-
-                <div className="flex items-center gap-6 mb-10">
-                  <div className="w-16 h-16 rounded-3xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/25">
-                    <Calendar className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-[#0F172A] outfit">Booking Details</h2>
-                    <p className="text-primary font-bold tracking-wider">{selectedBooking.booking_id}</p>
-                  </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedBooking(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", zIndex: 200 }} />
+            <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 201, pointerEvents: "none" }}>
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} style={{ width: "100%", maxWidth: 500, background: "white", borderRadius: 24, padding: 32, boxShadow: "0 20px 40px rgba(0,0,0,0.2)", pointerEvents: "auto" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
+                  <h2 className="pg-section-title">Booking Details</h2>
+                  <button onClick={() => setSelectedBooking(null)} style={{ border: "none", background: "none", cursor: "pointer" }}><X size={20} /></button>
+                </div>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <DetailRow icon={<User size={16} />} label="Customer" value={selectedBooking.customer_name} subValue={maskEmail(selectedBooking.customer_email)} />
+                  <DetailRow 
+                    icon={<Clock size={16} />} 
+                    label="Time Slot" 
+                    value={format(new Date(selectedBooking.start_time), "EEEE, MMM d, yyyy")} 
+                    subValue={
+                      selectedBooking.end_time 
+                        ? `${format(new Date(selectedBooking.start_time), "hh:mm a")} - ${format(new Date(selectedBooking.end_time), "hh:mm a")}`
+                        : `${format(new Date(selectedBooking.start_time), "hh:mm a")} onwards`
+                    } 
+                  />
+                  <DetailRow icon={<CreditCard size={16} />} label="Payment" value={`₹${selectedBooking.total_price}`} subValue={selectedBooking.status.toUpperCase()} />
+                  <DetailRow icon={<Calendar size={16} />} label="Venue" value={selectedBooking.ground_name} subValue={selectedBooking.court_name} />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="space-y-8">
-                    <DetailItem icon={<User />} label="Customer Info">
-                      <p className="font-bold text-[#0F172A]">{selectedBooking.customer_name}</p>
-                      <p className="text-sm text-gray-400">{selectedBooking.customer_email}</p>
-                    </DetailItem>
-
-                    <DetailItem icon={<Clock />} label="Date & Time Slot">
-                      <p className="font-bold text-[#0F172A]">{format(new Date(selectedBooking.start_time), "EEEE, MMM d, yyyy")}</p>
-                      <p className="text-sm text-gray-500 font-medium">
-                        {format(new Date(selectedBooking.start_time), "hh:mm a")}
-                        {selectedBooking.end_time && ` - ${format(new Date(selectedBooking.end_time), "hh:mm a")}`}
-                      </p>
-                    </DetailItem>
-                  </div>
-
-                  <div className="space-y-8">
-                    <DetailItem icon={<CreditCard />} label="Payment & Amount">
-                      <p className="text-2xl font-bold text-secondary mb-1">₹{selectedBooking.total_price}</p>
-                      <span className={`px-3 py-1 rounded-lg text-[10px] font-bold tracking-widest ${
-                        selectedBooking.status === 'confirmed' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-red-100 text-red-500'
-                      }`}>
-                        {selectedBooking.status.toUpperCase()}
-                      </span>
-                    </DetailItem>
-
-                    <DetailItem icon={<Calendar />} label="Venue Details">
-                      <p className="font-bold text-[#0F172A]">{selectedBooking.ground_name}</p>
-                      <p className="text-sm text-gray-500 font-medium">{selectedBooking.court_name}</p>
-                    </DetailItem>
-                  </div>
+                <div style={{ marginTop: 32, display: "flex", gap: 12 }}>
+                  <button className="pg-btn pg-btn-outline" style={{ flex: 1 }}>Print Ticket</button>
                 </div>
-
-                <div className="mt-12 flex items-center gap-4">
-                  <button className="flex-1 bg-secondary hover:bg-primary text-white py-4 rounded-2xl font-bold smooth-transition shadow-lg shadow-black/5">
-                    Update Status
-                  </button>
-                  <button className="flex-1 border border-gray-100 hover:bg-gray-50 text-secondary py-4 rounded-2xl font-bold smooth-transition">
-                    Print Receipt
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
     </div>
+    </ProtectedRoute>
   );
 }
 
-function DetailItem({ icon, label, children }) {
+function DetailRow({ icon, label, value, subValue }) {
   return (
-    <div className="flex gap-4">
-      <div className="w-10 h-10 rounded-xl bg-[#F8FAFC] border border-gray-50 flex items-center justify-center text-gray-400 shrink-0">
-        {React.cloneElement(icon, { className: "w-5 h-5" })}
-      </div>
+    <div style={{ display: "flex", gap: 12 }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>{icon}</div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{label}</p>
-        <div className="space-y-0.5">{children}</div>
+        <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>{label}</p>
+        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{value}</p>
+        <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>{subValue}</p>
       </div>
     </div>
   );

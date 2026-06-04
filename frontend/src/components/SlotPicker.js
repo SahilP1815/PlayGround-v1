@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, CheckCircle2, MapPin, Sun, Sunrise, Moon, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, CheckCircle2, MapPin, Sun, Sunrise, Moon, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 import { format, addDays, getHours, getMinutes } from "date-fns";
 
-export default function SlotPicker({ court, slots, onSelect, groundLocation, multiSelect = false, selectedDate, onDateChange }) {
+export default function SlotPicker({ court, slots, onSelect, groundLocation, multiSelect = false, selectedDate, onDateChange, maxDays = 7 }) {
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
   const [openSections, setOpenSections] = useState({ morning: true, afternoon: false, evening: false });
+  const [currentDate, setCurrentDate] = useState(null);
 
   // Reset selection when slots change (e.g., when switching courts or dates)
   useEffect(() => {
     setSelectedSlotIds([]);
   }, [slots]);
 
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i));
+  useEffect(() => {
+    setCurrentDate(new Date());
+  }, []);
 
   // No need to filter by date here anymore as 'slots' prop is already filtered/generated for the specific date in parent
   const filteredSlots = slots;
@@ -60,30 +63,34 @@ export default function SlotPicker({ court, slots, onSelect, groundLocation, mul
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Date Selector */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar">
-        {dates.map((date) => (
-          <button
-            key={date.toString()}
-            onClick={() => {
-              onDateChange(date);
-              setSelectedSlotIds([]);
-              onSelect([]);
+      {/* Date Selector - Calendar View with Input Bar */}
+      <div className="flex flex-col gap-3">
+        <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400 ml-1">
+          Select Match Date
+        </label>
+        <div className="relative group">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-primary group-focus-within:text-primary-dark smooth-transition">
+            <Calendar className="w-5 h-5" />
+          </div>
+          <input
+            type="date"
+            min={currentDate ? format(currentDate, "yyyy-MM-dd") : undefined}
+            max={currentDate ? format(addDays(currentDate, Math.min(maxDays, 30) - 1), "yyyy-MM-dd") : undefined}
+            value={format(selectedDate, "yyyy-MM-dd")}
+            onChange={(e) => {
+              if (e.target.value) {
+                const newDate = new Date(e.target.value);
+                onDateChange(newDate);
+                setSelectedSlotIds([]);
+                onSelect([]);
+              }
             }}
-            className={`flex flex-col items-center min-w-[70px] py-4 rounded-2xl border smooth-transition ${
-              format(selectedDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
-                ? "bg-primary border-primary text-white shadow-lg shadow-primary/20"
-                : "bg-white border-black/5 text-gray-500 hover:border-primary/20"
-            }`}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider mb-1">
-              {format(date, "EEE")}
-            </span>
-            <span className="text-lg font-bold outfit">
-              {format(date, "d")}
-            </span>
-          </button>
-        ))}
+            className="w-full min-h-[52px] pl-12 pr-4 py-4 rounded-2xl border border-black/5 bg-white font-bold outfit text-secondary focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none smooth-transition cursor-pointer"
+          />
+        </div>
+        <p className="text-[10px] text-gray-400 ml-1 font-medium">
+          Showing availability for {format(selectedDate, "EEEE, MMMM do, yyyy")}
+        </p>
       </div>
 
       {/* Collapsible Slot Sections */}
@@ -114,7 +121,7 @@ export default function SlotPicker({ court, slots, onSelect, groundLocation, mul
 
         <DropdownSlotGroup
           title="Evening & Night"
-          subtitle="5:00 PM – 1:00 AM"
+          subtitle="5:00 PM – 12:00 AM"
           icon={<Moon className="w-5 h-5 text-purple-500" />}
           slots={groupedSlots.evening}
           selectedIds={selectedSlotIds}
@@ -153,10 +160,23 @@ export default function SlotPicker({ court, slots, onSelect, groundLocation, mul
             title="Venue Location - Satellite, Ahmedabad"
           />
         </div>
-        <p className="mt-2 text-[11px] text-gray-500 font-medium px-1">
-          📍 {groundLocation || "Satellite, Ahmedabad"}
+        <p className="mt-2 text-[11px] text-gray-500 font-medium px-1 flex items-center gap-1">
+          <MapPin size={12} /> {groundLocation || "Satellite, Ahmedabad"}
         </p>
       </div>
+      {selectedSlotIds.length > 0 && (
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-black/10 px-4 py-3 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          <div>
+            <p className="text-xs text-gray-500 font-medium">{selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''} selected</p>
+            <p className="text-sm font-bold text-secondary">
+              ₹{filteredSlots.filter(s => selectedSlotIds.includes(s.id)).reduce((sum, s) => sum + Number(s.price || 0), 0)}
+            </p>
+          </div>
+          <div className="bg-primary/10 text-primary text-xs font-bold px-3 py-1.5 rounded-full">
+            ✓ Slots Picked
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -169,7 +189,7 @@ function DropdownSlotGroup({ title, subtitle, icon, slots, selectedIds, onClick,
       {/* Dropdown Header */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-5 hover:bg-surface smooth-transition"
+        className="w-full flex items-center justify-between py-3 px-1 min-h-[44px] text-left hover:bg-surface smooth-transition"
       >
         <div className="flex items-center gap-3">
           {icon}
@@ -198,7 +218,7 @@ function DropdownSlotGroup({ title, subtitle, icon, slots, selectedIds, onClick,
       {isOpen && (
         <div className="px-5 pb-5 pt-2 border-t border-black/5">
           {slots.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3">
               {slots.map((slot) => {
                 const isAvailable = slot.status === "available" || slot.available === true;
                 const isSelected = selectedIds.includes(slot.id);
@@ -208,30 +228,28 @@ function DropdownSlotGroup({ title, subtitle, icon, slots, selectedIds, onClick,
                     key={slot.id}
                     disabled={!isAvailable}
                     onClick={() => onClick(slot)}
-                    className={`py-3 px-2 rounded-xl border text-center smooth-transition relative ${
+                    className={`p-2 rounded-2xl border text-center smooth-transition relative min-h-[64px] sm:min-h-[auto] flex flex-col items-center justify-center gap-0.5 ${
                       isSelected
                         ? "bg-primary border-primary text-white shadow-md shadow-primary/20"
                         : isAvailable
-                        ? "bg-white border-black/5 text-secondary hover:border-primary hover:bg-primary/5"
-                        : "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed opacity-60"
+                        ? "bg-white border-black/10 text-secondary hover:border-primary"
+                        : "bg-gray-100 border-gray-100 text-gray-400 cursor-not-allowed"
                     }`}
                   >
-                    <span className={`text-[11px] font-bold block ${isSelected ? "text-white" : "text-secondary"}`}>
-                      {format(new Date(slot.start_time), "hh:mm a")}
+                    <span className={`text-sm font-bold ${isSelected ? "text-white" : "text-secondary"}`}>
+                      {format(new Date(slot.start_time), "h:mm a")} - {format(new Date(slot.end_time), "h:mm a")}
                     </span>
-                    <div className="flex items-center justify-center gap-1 mt-0.5">
-                      <span className={`text-[10px] font-bold ${
-                        isSelected ? "text-white" : isAvailable ? (getHours(new Date(slot.start_time)) < 18 ? "text-green-500" : "text-primary-dark") : "text-gray-300"
-                      }`}>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`text-xs ${isSelected ? "text-white" : "text-gray-500"}`}>
                         ₹{slot.price}
                       </span>
                       {isAvailable && !isSelected && getHours(new Date(slot.start_time)) < 18 && (
-                        <span className="text-[8px] bg-green-500/10 text-green-600 px-1 rounded-sm font-bold uppercase tracking-tight">Save 20%</span>
+                        <span className="text-[9px] bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight">Save 20%</span>
                       )}
                     </div>
 
                     {isSelected && (
-                      <div className="absolute top-1 right-1">
+                      <div className="absolute top-1.5 right-1.5">
                         <CheckCircle2 className="w-3 h-3 text-white" />
                       </div>
                     )}

@@ -159,7 +159,10 @@ function UpcomingBooking({ ground, court, date, time, location, id }) {
              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center p-1">
                <div className="grid grid-cols-4 gap-0.5 w-full h-full">
                  {Array.from({ length: 16 }).map((_, i) => (
-                   <div key={i} className={`rounded-[1px] ${Math.random() > 0.4 ? "bg-black" : "bg-transparent"}`} />
+                   <div
+                     key={i}
+                     className={`rounded-[1px] ${i % 3 === 0 || i % 5 === 0 ? "bg-black" : "bg-transparent"}`}
+                   />
                  ))}
                </div>
              </div>

@@ -37,3 +37,16 @@ yarn-debug.log*
 yarn-error.log*
 logs/
 *.log
+
+# ZIP/Archive files
+*.zip
+frontend/src/app/owner.zip
+
+# Uploaded assets
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+backend/static/uploads/docs/*
+!backend/static/uploads/docs/.gitkeep
+
+# Output and temp files
+backend/output.txt

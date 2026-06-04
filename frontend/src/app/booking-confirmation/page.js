@@ -15,8 +15,10 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 
 export default function BookingConfirmationPage() {
+  const { user } = useAuth();
   const [booking, setBooking] = useState(null);
 
   useEffect(() => {
@@ -27,10 +29,18 @@ export default function BookingConfirmationPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <div className="min-h-screen bg-background relative">
+      {user?.role !== "owner" ? (
+        <Navbar />
+      ) : (
+        <div className="absolute top-8 left-8">
+          <Link href="/owner/personal-bookings" className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-secondary smooth-transition bg-white px-4 py-2 rounded-xl border border-black/5 shadow-sm">
+            <ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /> Back to Explore
+          </Link>
+        </div>
+      )}
 
-      <main className="pt-32 pb-20 container mx-auto px-6 flex flex-col items-center text-secondary">
+      <main className={`${user?.role !== "owner" ? "pt-32" : "pt-24"} pb-20 container mx-auto px-6 flex flex-col items-center text-secondary`}>
         {/* Success Animation */}
         <motion.div 
           initial={{ scale: 0, opacity: 0 }}
@@ -119,16 +129,16 @@ export default function BookingConfirmationPage() {
         {/* Next Steps */}
         <div className="mt-16 flex flex-col md:flex-row gap-4">
           <Link 
-            href="/bookings"
+            href={user?.role === "owner" ? "/owner/personal-bookings" : "/bookings"}
             className="px-10 py-4 rounded-2xl bg-white border border-black/5 font-bold text-secondary hover:bg-surface smooth-transition flex items-center justify-center gap-2"
           >
             Manage Bookings
           </Link>
           <Link 
-            href="/"
+            href={user?.role === "owner" ? "/owner/dashboard" : "/"}
             className="px-10 py-4 rounded-2xl bg-secondary text-white font-bold hover:bg-primary smooth-transition flex items-center justify-center gap-2 shadow-xl shadow-black/10"
           >
-            Back to Home <ArrowRight className="w-5 h-5" />
+            {user?.role === "owner" ? "Back to Dashboard" : "Back to Home"} <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
       </main>

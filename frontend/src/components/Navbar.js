@@ -2,18 +2,29 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Trophy, User, Search, Menu, LogOut, ChevronDown, Calendar, Settings, LayoutDashboard, MapPin } from "lucide-react";
+import { Trophy, User, Search, Menu, LogOut, ChevronDown, Calendar, Settings, LayoutDashboard, MapPin, Heart, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar({ onMenuClick, sidebarOpen }) {
+  const { user, isAuthenticated, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [userRole, setUserRole] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isLoggedIn = isAuthenticated;
+  const userName = user?.name || "";
+  const userRole = user?.role || "";
+  const displayRole = 
+    userRole === "user" ? "player" :
+    userRole === "handler" ? "handler" :
+    (userRole === "admin" && (pathname?.startsWith("/owner") || pathname === "/bookings")) ? "owner" : 
+    userRole;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,43 +33,6 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      const name = localStorage.getItem("userName");
-      const role = localStorage.getItem("userRole");
-      
-      if (token) {
-        setIsLoggedIn(true);
-        setUserRole(role || "user");
-        if (name) {
-          setUserName(name);
-        } else {
-          try {
-            const res = await fetch("http://localhost:8000/api/auth/me", {
-              headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (res.ok) {
-              const data = await res.json();
-              setUserName(data.name);
-              setUserRole(data.role);
-              localStorage.setItem("userName", data.name);
-              localStorage.setItem("userRole", data.role);
-            }
-          } catch (err) {
-            console.error("Failed to fetch user name:", err);
-          }
-        }
-      } else {
-        setIsLoggedIn(false);
-        setUserName("");
-        setUserRole("");
-      }
-    };
-
-    checkAuth();
-  }, [pathname]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -72,26 +46,21 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userRole");
-    setIsLoggedIn(false);
-    setUserName("");
-    setUserRole("");
+    logout();
     setIsDropdownOpen(false);
-    router.push("/login");
   };
 
   const isActive = (path) => pathname === path;
 
   return (
-    <nav 
-      className={`fixed top-0 left-0 right-0 z-50 smooth-transition ${
-        isScrolled ? "glass py-3 shadow-lg shadow-black/5" : "bg-transparent py-5"
-      }`}
-    >
+    <>
+      <nav 
+        className={`fixed top-0 left-0 right-0 z-50 smooth-transition ${
+          isScrolled ? "glass py-3 shadow-lg shadow-black/5" : "bg-transparent py-5"
+        }`}
+      >
       <div className="container mx-auto px-4 flex items-center justify-between max-w-[1400px]">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-1">
           {onMenuClick && (
             <button 
               onClick={onMenuClick}
@@ -112,13 +81,15 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
           )}
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex items-center space-x-1 text-sm font-medium border-r border-black/5 pr-6 mr-2">
-            {userRole === "owner" ? (
+        {/* Centered Navigation Links */}
+        <div className="hidden md:flex items-center absolute left-1/2 -translate-x-1/2">
+          <div className="flex items-center text-sm font-medium" style={{ gap: "24px" }}>
+            {displayRole === "owner" ? (
               <>
                 <Link 
                   href="/owner/dashboard" 
-                  className={`px-4 py-2 rounded-xl smooth-transition ${
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
                     isActive("/owner/dashboard") 
                       ? "bg-primary/10 text-primary font-bold" 
                       : "text-gray-600 hover:text-primary hover:bg-surface"
@@ -128,7 +99,8 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                 </Link>
                 <Link 
                   href="/owner/grounds" 
-                  className={`px-4 py-2 rounded-xl smooth-transition ${
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
                     isActive("/owner/grounds") 
                       ? "bg-primary/10 text-primary font-bold" 
                       : "text-gray-600 hover:text-primary hover:bg-surface"
@@ -136,12 +108,24 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                 >
                   My Grounds
                 </Link>
+                <Link 
+                  href="/owner/personal-bookings" 
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
+                    isActive("/owner/personal-bookings") 
+                      ? "bg-primary/10 text-primary font-bold" 
+                      : "text-gray-600 hover:text-primary hover:bg-surface"
+                  }`}
+                >
+                  My Bookings
+                </Link>
               </>
-            ) : (
+            ) : displayRole === "admin" ? (
               <>
                 <Link 
                   href="/" 
-                  className={`px-4 py-2 rounded-xl smooth-transition ${
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
                     isActive("/") 
                       ? "bg-primary/10 text-primary font-bold" 
                       : "text-gray-600 hover:text-primary hover:bg-surface"
@@ -151,7 +135,8 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                 </Link>
                 <Link 
                   href="/explore" 
-                  className={`px-4 py-2 rounded-xl smooth-transition ${
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
                     isActive("/explore") 
                       ? "bg-primary/10 text-primary font-bold" 
                       : "text-gray-600 hover:text-primary hover:bg-surface"
@@ -161,7 +146,44 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                 </Link>
                 <Link 
                   href="/bookings" 
-                  className={`px-4 py-2 rounded-xl smooth-transition ${
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
+                    isActive("/bookings") 
+                      ? "bg-primary/10 text-primary font-bold" 
+                      : "text-gray-600 hover:text-primary hover:bg-surface"
+                  }`}
+                >
+                  My Bookings
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link 
+                  href="/" 
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
+                    isActive("/") 
+                      ? "bg-primary/10 text-primary font-bold" 
+                      : "text-gray-600 hover:text-primary hover:bg-surface"
+                  }`}
+                >
+                  Home
+                </Link>
+                <Link 
+                  href="/explore" 
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
+                    isActive("/explore") 
+                      ? "bg-primary/10 text-primary font-bold" 
+                      : "text-gray-600 hover:text-primary hover:bg-surface"
+                  }`}
+                >
+                  Explore
+                </Link>
+                <Link 
+                  href="/bookings" 
+                  style={{ padding: "8px 16px" }}
+                  className={`rounded-xl smooth-transition ${
                     isActive("/bookings") 
                       ? "bg-primary/10 text-primary font-bold" 
                       : "text-gray-600 hover:text-primary hover:bg-surface"
@@ -172,11 +194,16 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
               </>
             )}
           </div>
+        </div>
 
+        <div className="flex items-center flex-1 justify-end" style={{ gap: "24px" }}>
           <div className="flex items-center space-x-2">
-            {!pathname?.startsWith("/owner") && (
+            {!pathname?.startsWith("/owner") && pathname !== "/explore" && (
               <>
-                <button className="lg:hidden p-2 hover:bg-surface rounded-full smooth-transition text-gray-600">
+                <button 
+                  onClick={() => router.push("/explore")}
+                  className="lg:hidden p-2 hover:bg-surface rounded-full smooth-transition text-gray-600"
+                >
                   <Search className="w-5 h-5" />
                 </button>
                 <div className="hidden lg:flex items-center relative mr-2 group">
@@ -184,7 +211,16 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                   <input 
                     type="text" 
                     placeholder="Search for grounds..." 
-                    className="bg-gray-50/50 border border-black/5 rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 focus:w-72 smooth-transition hover:bg-white hover:shadow-xl hover:shadow-black/5 glass"
+                    suppressHydrationWarning
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && searchQuery.trim()) {
+                        router.push(`/explore?search=${encodeURIComponent(searchQuery.trim())}`);
+                        setSearchQuery("");
+                      }
+                    }}
+                    className="bg-gray-50/50 border border-black/5 rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-48 focus:w-64 smooth-transition hover:bg-white hover:shadow-xl hover:shadow-black/5 glass"
                   />
                 </div>
               </>
@@ -204,19 +240,28 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                       {userName || "Profile"}
                     </span>
                     <span className="text-[10px] font-bold text-primary uppercase tracking-tighter opacity-70">
-                      {userRole}
+                      {displayRole}
                     </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-gray-400 smooth-transition ${isDropdownOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 glass rounded-2xl shadow-2xl border border-black/5 py-2 animate-in fade-in zoom-in duration-200">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-black/5 py-2 animate-in fade-in zoom-in duration-200">
                     <div className="px-4 py-3 border-b border-black/5 mb-2">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Logged in as</p>
                       <p className="text-sm font-bold text-secondary truncate">{userName}</p>
-                      <p className="text-[10px] font-bold text-primary uppercase">{userRole}</p>
+                      <p className="text-[10px] font-bold text-primary uppercase">{displayRole}</p>
                     </div>
+
+                    <Link 
+                      href="/profile"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary smooth-transition"
+                    >
+                      <User className="w-4 h-4" />
+                      <span>My Profile</span>
+                    </Link>
                     
                     {userRole === "owner" ? (
                       <>
@@ -237,15 +282,53 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
                           <span>My Grounds</span>
                         </Link>
                       </>
-                    ) : (
+                    ) : userRole === "handler" ? (
+                      <>
+                        <Link 
+                          href="/handler/dashboard"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary smooth-transition"
+                        >
+                          <LayoutDashboard className="w-4 h-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                        <Link 
+                          href="/handler/venues"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary smooth-transition"
+                        >
+                          <MapPin className="w-4 h-4" />
+                          <span>Assigned Venues</span>
+                        </Link>
+                      </>
+                    ) : userRole === "admin" ? (
                       <Link 
-                        href="/bookings"
+                        href="/admin"
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary smooth-transition"
                       >
-                        <Calendar className="w-4 h-4" />
-                        <span>My Bookings</span>
+                        <Settings className="w-4 h-4" />
+                        <span>Admin Panel</span>
                       </Link>
+                    ) : (
+                      <>
+                        <Link 
+                          href="/bookings"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary smooth-transition"
+                        >
+                          <Calendar className="w-4 h-4" />
+                          <span>My Bookings</span>
+                        </Link>
+                        <Link 
+                          href="/favorites"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-primary/5 hover:text-primary smooth-transition"
+                        >
+                          <Heart className="w-4 h-4" />
+                          <span>My Favorites</span>
+                        </Link>
+                      </>
                     )}
 
                     <div className="h-px bg-black/5 my-2"></div>
@@ -271,7 +354,10 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
             )}
 
             {!pathname?.startsWith("/owner") && (
-              <button className="md:hidden p-2 text-secondary hover:bg-surface rounded-lg smooth-transition">
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden p-2 text-secondary hover:bg-surface rounded-lg smooth-transition"
+              >
                 <Menu className="w-6 h-6" />
               </button>
             )}
@@ -279,5 +365,128 @@ export default function Navbar({ onMenuClick, sidebarOpen }) {
         </div>
       </div>
     </nav>
+
+    <AnimatePresence>
+      {mobileMenuOpen && (
+        <>
+          {/* Dark overlay — clicking it closes the drawer */}
+          <motion.div
+            className="mobile-overlay md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer panel */}
+          <motion.div
+            className="fixed top-0 left-0 h-full w-72 bg-white z-[99] flex flex-col shadow-2xl md:hidden"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          >
+            {/* Header row: logo + X close button */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                <div className="bg-primary p-1.5 rounded-lg">
+                  <Trophy className="text-white w-5 h-5" />
+                </div>
+                <span className="text-xl font-bold outfit text-secondary">
+                  Play<span className="text-primary">Ground</span>
+                </span>
+              </Link>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMobileMenuOpen(false);
+                }} 
+                className="w-12 h-12 flex items-center justify-center rounded-xl hover:bg-surface bg-gray-50 border border-black/5 active:scale-95 smooth-transition"
+                aria-label="Close menu"
+              >
+                <X className="w-6 h-6 text-gray-600 pointer-events-none" />
+              </button>
+            </div>
+
+            {/* Nav links */}
+            <nav className="flex-1 py-4 px-3 flex flex-col gap-1">
+              {displayRole === "owner" ? (
+                <>
+                  <Link href="/owner/dashboard" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/owner/dashboard") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <LayoutDashboard className="w-5 h-5" /> Dashboard
+                  </Link>
+                  <Link href="/owner/grounds" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/owner/grounds") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <MapPin className="w-5 h-5" /> My Grounds
+                  </Link>
+                  <Link href="/owner/personal-bookings" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/owner/personal-bookings") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Calendar className="w-5 h-5" /> My Bookings
+                  </Link>
+                </>
+              ) : displayRole === "admin" ? (
+                <>
+                  <Link href="/" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Trophy className="w-5 h-5" /> Home
+                  </Link>
+                  <Link href="/explore" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/explore") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Search className="w-5 h-5" /> Explore
+                  </Link>
+                  <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/bookings") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Calendar className="w-5 h-5" /> My Bookings
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Trophy className="w-5 h-5" /> Home
+                  </Link>
+                  <Link href="/explore" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/explore") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Search className="w-5 h-5" /> Explore
+                  </Link>
+                  <Link href="/bookings" onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-5 py-3.5 text-base rounded-xl ${isActive("/bookings") ? "bg-primary/10 text-primary font-bold" : "text-gray-600 hover:bg-surface hover:text-primary"}`}>
+                    <Calendar className="w-5 h-5" /> My Bookings
+                  </Link>
+                </>
+              )}
+            </nav>
+
+            {/* Bottom section */}
+            <div className="border-t border-black/5 p-4">
+              {isLoggedIn ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3 px-2">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-secondary">{userName || "Profile"}</span>
+                      <span className="text-xs font-bold text-primary uppercase tracking-wider">{displayRole}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-500 py-3 rounded-2xl font-bold text-sm"
+                  >
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-2xl font-bold text-sm"
+                >
+                  <User className="w-4 h-4" /> Login / Sign Up
+                </Link>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

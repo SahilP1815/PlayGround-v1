@@ -35,6 +35,9 @@ class Booking(Document):
     total_price: float
     status: BookingStatus = BookingStatus.PENDING
     booking_id: str # Human readable ID
+    cancellation_reason: Optional[str] = None
+    cancelled_by: Optional[str] = None # "user" or "owner" or "handler"
+    audit_log: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

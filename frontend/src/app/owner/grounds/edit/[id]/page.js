@@ -1,7 +1,6 @@
 "use client";
 
-import Navbar from "@/components/Navbar";
-import OwnerSidebar from "@/components/OwnerSidebar";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Building2, 
   MapPin, 
@@ -12,12 +11,33 @@ import {
   ChevronLeft,
   CheckCircle2,
   Trophy,
-  Loader2
+  Loader2,
+  Check,
+  X
 } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import OwnerSidebar from "@/components/OwnerSidebar";
+import ImageUploader from "@/components/ImageUploader";
+import { useToast } from "@/context/ToastContext";
+import "../../../owner.css";
+
+const css = `
+  .pg-policy-selector { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 8px; }
+  .pg-policy-card { padding: 16px; border: 1.5px solid var(--border); border-radius: 16px; background: white; cursor: pointer; transition: all 0.2s; text-align: left; }
+  .pg-policy-card:hover { border-color: var(--teal-mid); background: #fafefe; }
+  .pg-policy-card.active { border-color: var(--teal); background: var(--teal-light); }
+  .pg-policy-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .pg-policy-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+`;
+
+const TIME_OPTIONS = Array.from({ length: 24 }, (_, i) => {
+  const hour = i.toString().padStart(2, "0");
+  const displayHour = i === 0 || i === 12 ? 12 : i % 12;
+  const ampm = i < 12 ? "AM" : "PM";
+  return { value: `${hour}:00`, label: `${displayHour}:00 ${ampm}` };
+});
 
 const steps = ["Basic Info", "Courts & Pricing", "Amenities", "Gallery"];
 
@@ -25,13 +45,13 @@ export default function EditGroundPage() {
   const router = useRouter();
   const params = useParams();
   const groundId = params.id;
+  const { showToast } = useToast();
 
   const [currentStep, setCurrentStep] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [activeSportTab, setActiveSportTab] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -39,16 +59,10 @@ export default function EditGroundPage() {
     description: "",
     amenities: [],
     courts: [],
-    images: []
+    images: [],
+    cancellation_policy: "flexible",
+    time_slots: []
   });
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   useEffect(() => {
     const fetchGroundDetails = async () => {
@@ -59,19 +73,13 @@ export default function EditGroundPage() {
           return;
         }
 
-        const response = await fetch(`http://localhost:8000/api/grounds/${groundId}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+        const response = await fetch(`/api/grounds/${groundId}`, {
+          headers: { "Authorization": `Bearer ${token}` }
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch ground details");
-        }
-
+        if (!response.ok) throw new Error("Failed to fetch ground details");
         const data = await response.json();
         
-        // Map backend data to frontend form structure
         setFormData({
           name: data.name,
           address: data.location.address,
@@ -83,21 +91,54 @@ export default function EditGroundPage() {
             sport: c.sport_type,
             price: c.base_price
           })),
-          images: data.images || []
+          images: data.images || [],
+          cancellation_policy: data.cancellation_policy || "flexible",
+          time_slots: data.time_slots || []
         });
       } catch (error) {
-        console.error("Error fetching ground:", error);
-        alert("Error loading ground details");
+        console.error("Error:", error);
         router.push("/owner/grounds");
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (groundId) {
-      fetchGroundDetails();
-    }
+    if (groundId) fetchGroundDetails();
   }, [groundId, router]);
+
+  // Sync activeSportTab based on unique sports in courts
+  useEffect(() => {
+    const uniqueSports = Array.from(new Set(formData.courts.map(c => c.sport).filter(Boolean)));
+    if (uniqueSports.length > 0 && !activeSportTab) {
+      setActiveSportTab(uniqueSports[0]);
+    }
+  }, [formData.courts, activeSportTab]);
+
+  const addSlot = () => {
+    const activeKey = activeSportTab || (formData.courts[0]?.sport || "cricket");
+    const sportKey = activeKey.toLowerCase();
+    const newSlots = [...(formData.time_slots || [])];
+    setFormData({
+      ...formData,
+      time_slots: [
+        ...newSlots,
+        {
+          days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+          start_time: "09:00",
+          end_time: "17:00",
+          price_per_hour: 1000,
+          slot_type: "regular",
+          sport_type: sportKey
+        }
+      ]
+    });
+  };
+
+  const removeSlot = (index) => {
+    const newSlots = [...(formData.time_slots || [])];
+    newSlots.splice(index, 1);
+    setFormData({ ...formData, time_slots: newSlots });
+  };
 
   const nextStep = () => {
     if (currentStep === steps.length - 1) {
@@ -113,25 +154,29 @@ export default function EditGroundPage() {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("token");
-      
       const payload = {
         name: formData.name,
         description: formData.description,
-        location: {
-          lat: 23.0225, 
-          lng: 72.5714,
-          address: formData.address
-        },
+        location: { lat: 23.0225, lng: 72.5714, address: formData.address },
         images: formData.images,
         amenities: formData.amenities,
         courts: formData.courts.map(court => ({
           name: court.name,
           sport_type: court.sport.toLowerCase(),
           base_price: parseFloat(court.price) || 0
+        })),
+        cancellation_policy: formData.cancellation_policy,
+        time_slots: (formData.time_slots || []).map(slot => ({
+          days: slot.days,
+          start_time: slot.start_time || slot.start,
+          end_time: slot.end_time || slot.end,
+          price_per_hour: parseFloat(slot.price_per_hour || slot.price),
+          slot_type: slot.slot_type || slot.type || "regular",
+          sport_type: slot.sport_type?.toLowerCase() || slot.sport?.toLowerCase()
         }))
       };
 
-      const response = await fetch(`http://localhost:8000/api/grounds/${groundId}`, {
+      const response = await fetch(`/api/grounds/${groundId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -140,15 +185,11 @@ export default function EditGroundPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || "Failed to update ground");
-      }
-
+      if (!response.ok) throw new Error("Failed to update ground");
+      showToast("Venue updated successfully!", "success");
       setIsSuccess(true);
     } catch (error) {
-      console.error("Error updating ground:", error);
-      alert(error.message || "An unexpected error occurred");
+      showToast(error.message, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -156,402 +197,347 @@ export default function EditGroundPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-gray-500 font-bold outfit">Loading Ground Details...</p>
-        </div>
+      <div className="pg-body" style={{ alignItems: "center", justifyContent: "center" }}>
+        <Loader2 className="animate-spin" size={48} color="var(--teal)" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex overflow-x-hidden relative">
-      <OwnerSidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
-        hidden={isScrolled}
-      />
-
-      <div className={`flex-1 smooth-transition ${isScrolled ? "ml-0" : (sidebarCollapsed ? "ml-[78px]" : "ml-[272px]")}`}>
-        <Navbar />
-
-        <main className="pt-32 pb-20 container mx-auto px-6 max-w-4xl">
-        <div className="flex items-center justify-between mb-12">
-            <div>
-                <h1 className="text-4xl font-bold text-[#0F172A] outfit mb-2">Edit Ground</h1>
-                <p className="text-gray-400 font-medium text-lg">Update your venue information.</p>
-            </div>
-            <Link href="/owner/grounds" className="text-gray-400 hover:text-primary font-bold smooth-transition flex items-center gap-2">
-                <ChevronLeft className="w-5 h-5" /> Back to My Grounds
-            </Link>
+    <div className="pg-body">
+      <style>{css}</style>
+      <OwnerSidebar />
+      
+      <main className="pg-main">
+        <div className="pg-topbar">
+          <div className="pg-breadcrumb">Owner Panel › Grounds › <span>Edit</span></div>
+          <Link href="/owner/grounds" style={{ textDecoration: "none" }}>
+            <div className="pg-status-chip" style={{ cursor: "pointer" }}><ChevronLeft size={14} /> Back to List</div>
+          </Link>
         </div>
 
-        {/* Progress Stepper */}
-        <div className="flex items-center justify-between mb-16 relative">
-          <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -z-10 -translate-y-1/2" />
-          <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-primary -z-10 -translate-y-1/2 transition-all duration-500" 
-            style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
-          />
-          
-          {steps.map((step, i) => (
-            <div key={step} className="flex flex-col items-center gap-3">
-              <div 
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm smooth-transition border-4 ${
-                  i <= currentStep 
-                    ? "bg-primary border-primary text-white" 
-                    : "bg-white border-gray-100 text-gray-400"
-                }`}
-              >
-                {i < currentStep ? <CheckCircle2 className="w-5 h-5" /> : i + 1}
+        <div className="pg-container" style={{ maxWidth: 700 }}>
+          <div style={{ marginBottom: 40 }}>
+            <h1 className="pg-section-title" style={{ fontSize: 28 }}>Edit Venue</h1>
+            <p className="pg-section-desc">Keep your venue information up to date for players.</p>
+          </div>
+
+          <div className="pg-stepper">
+            <div className="pg-step-line">
+              <div className="pg-step-line-fill" style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }} />
+            </div>
+            {steps.map((step, i) => (
+              <div key={step} className={`pg-step ${i <= currentStep ? (i < currentStep ? "done" : "active") : ""}`}>
+                <div className="pg-step-circle">{i < currentStep ? <Check size={14} className="text-white" /> : i + 1}</div>
+                <span className="pg-step-label">{step}</span>
               </div>
-              <span className={`text-xs font-bold uppercase tracking-wider ${i <= currentStep ? "text-secondary" : "text-gray-400"}`}>
-                {step}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Form Card */}
-        <div className="glass rounded-[40px] border border-black/5 p-10 md:p-16 shadow-2xl shadow-black/5 relative overflow-hidden">
+          <div className="pg-card">
             {isSuccess ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <h2 className="text-3xl font-bold outfit mb-2">Ground Updated Successfully!</h2>
-                <p className="text-gray-500 mb-8">Your venue details have been synchronized.</p>
-                <Link href="/owner/grounds" className="bg-secondary hover:bg-primary text-white px-10 py-4 rounded-2xl font-bold smooth-transition shadow-lg shadow-black/10">
-                  Back to My Grounds
-                </Link>
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ color: "var(--teal)", marginBottom: 20 }}><CheckCircle2 size={64} /></div>
+                <h2 className="pg-section-title">Update Successful!</h2>
+                <p className="pg-section-desc">Your changes have been saved and are now live.</p>
+                <Link href="/owner/grounds" className="pg-btn pg-btn-teal" style={{ display: "inline-block", textDecoration: "none" }}>Back to Grounds</Link>
               </div>
             ) : (
               <>
                 <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentStep}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.4 }}
-                  >
+                  <motion.div key={currentStep} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
                     {currentStep === 0 && (
-                      <BasicInfoStep 
-                        data={formData} 
-                        onChange={(update) => setFormData({ ...formData, ...update })} 
-                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                        <div className="pg-field">
+                          <label className="pg-label">Venue Name</label>
+                          <input className="pg-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Masterstroke Turf" />
+                        </div>
+                        <div className="pg-field">
+                          <label className="pg-label">Address</label>
+                          <input className="pg-input" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Full address..." />
+                        </div>
+                        <div className="pg-field">
+                          <label className="pg-label">Description</label>
+                          <textarea className="pg-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Describe your venue..." />
+                        </div>
+                      </div>
                     )}
                     {currentStep === 1 && (
-                      <CourtsStep 
-                        courts={formData.courts} 
-                        onChange={(courts) => setFormData({ ...formData, courts })} 
-                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <h3 className="pg-label" style={{ fontSize: 14 }}>Courts & Slots</h3>
+                          <button onClick={() => setFormData({...formData, courts: [...formData.courts, { id: Date.now(), name: "", sport: "cricket", price: "" }]})} className="pg-btn pg-btn-outline" style={{ padding: "6px 12px", fontSize: 12 }}>+ Add Court</button>
+                        </div>
+                        {formData.courts.map((court, idx) => (
+                          <div key={court.id} style={{ padding: 20, background: "#f8fafc", borderRadius: 16, position: "relative" }}>
+                            <div className="pg-grid" style={{ gridTemplateColumns: "1fr 1fr 100px" }}>
+                              <input className="pg-input" value={court.name} onChange={e => {
+                                const newCourts = [...formData.courts];
+                                newCourts[idx].name = e.target.value;
+                                setFormData({...formData, courts: newCourts});
+                              }} placeholder="Court Name" />
+                              <select className="pg-select" value={court.sport} onChange={e => {
+                                const newCourts = [...formData.courts];
+                                newCourts[idx].sport = e.target.value;
+                                setFormData({...formData, courts: newCourts});
+                              }}>
+                                <option value="cricket">Cricket</option>
+                                <option value="football">Football</option>
+                                <option value="badminton">Badminton</option>
+                              </select>
+                              <input className="pg-input" type="number" value={court.price} onChange={e => {
+                                const newCourts = [...formData.courts];
+                                newCourts[idx].price = e.target.value;
+                                setFormData({...formData, courts: newCourts});
+                              }} placeholder="Price" />
+                            </div>
+                            {formData.courts.length > 1 && (
+                              <button onClick={() => setFormData({...formData, courts: formData.courts.filter((_, i) => i !== idx)})} style={{ position: "absolute", top: -8, right: -8, width: 24, height: 24, borderRadius: "50%", background: "var(--red)", color: "white", border: "none", cursor: "pointer", fontSize: 12 }}>×</button>
+                            )}
+                          </div>
+                        ))}
+                        
+                        {/* Sport specific Slots & Pricing Configuration */}
+                        {(() => {
+                          const uniqueSports = Array.from(new Set(formData.courts.map(c => c.sport).filter(Boolean)));
+                          if (uniqueSports.length === 0) return null;
+
+                          const activeKey = (activeSportTab || uniqueSports[0]).toLowerCase();
+                          const activeSlots = (formData.time_slots || []).filter(s => (s.sport_type || "").toLowerCase() === activeKey);
+
+                          return (
+                            <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid var(--border)" }}>
+                              <div style={{ marginBottom: 16 }}>
+                                <h4 className="pg-label" style={{ fontSize: 13, marginBottom: 8 }}>Custom Slots & Hourly Pricing per Sport</h4>
+                                <div style={{ display: "flex", gap: 8, paddingBottom: 8, overflowX: "auto" }}>
+                                  {uniqueSports.map(sport => (
+                                    <button
+                                      key={sport}
+                                      type="button"
+                                      onClick={() => setActiveSportTab(sport)}
+                                      className={`px-4 py-2 rounded-xl text-xs font-bold smooth-transition`}
+                                      style={{
+                                        marginRight: 6,
+                                        background: activeKey === sport.toLowerCase() ? "var(--teal)" : "#edf2f7",
+                                        color: activeKey === sport.toLowerCase() ? "white" : "#718096",
+                                        border: "none",
+                                        borderRadius: 12,
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      {sport.toUpperCase()}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div style={{ background: "#f8fafc", padding: 20, borderRadius: 16 }}>
+                                <div className="pg-section-title" style={{ fontSize: 14, marginBottom: 12 }}>Time Slots for {activeKey.toUpperCase()}</div>
+                                <table className="pg-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                                  <thead>
+                                    <tr style={{ textAlign: "left", fontSize: 11, color: "var(--text-secondary)" }}>
+                                      <th style={{ paddingBottom: 8 }}>Days</th>
+                                      <th style={{ paddingBottom: 8 }}>Start</th>
+                                      <th style={{ paddingBottom: 8 }}>End</th>
+                                      <th style={{ paddingBottom: 8 }}>Price</th>
+                                      <th style={{ paddingBottom: 8 }}>Type</th>
+                                      <th style={{ paddingBottom: 8 }}></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {activeSlots.map((slot, originalIdx) => {
+                                      // Find global index in formData.time_slots
+                                      const globalIdx = formData.time_slots.findIndex(s => s === slot);
+
+                                      return (
+                                        <tr key={originalIdx} style={{ borderTop: "1px solid #edf2f7" }}>
+                                          <td style={{ padding: "8px 0", minWidth: 160 }}>
+                                            <div className="flex flex-wrap gap-1">
+                                              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => {
+                                                const isActive = (slot.days || []).includes(day);
+                                                return (
+                                                  <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const newSlots = [...formData.time_slots];
+                                                      const currentDays = slot.days || [];
+                                                      if (isActive) {
+                                                        newSlots[globalIdx].days = currentDays.filter(d => d !== day);
+                                                      } else {
+                                                        newSlots[globalIdx].days = [...currentDays, day];
+                                                      }
+                                                      setFormData({ ...formData, time_slots: newSlots });
+                                                    }}
+                                                    className={`w-6 h-6 rounded-lg text-[9px] font-bold transition-all`}
+                                                    style={{
+                                                      marginRight: 2,
+                                                      background: isActive ? "var(--teal)" : "#edf2f7",
+                                                      color: isActive ? "white" : "#718096",
+                                                      border: "none",
+                                                      cursor: "pointer"
+                                                    }}
+                                                  >
+                                                    {day.substring(0, 1)}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </td>
+                                          <td style={{ padding: "8px 0" }}>
+                                            <select 
+                                              className="pg-select" 
+                                              value={slot.start_time || slot.start || "06:00"} 
+                                              onChange={e => { 
+                                                const newSlots = [...formData.time_slots]; 
+                                                newSlots[globalIdx].start_time = e.target.value; 
+                                                newSlots[globalIdx].start = e.target.value; 
+                                                setFormData({ ...formData, time_slots: newSlots }); 
+                                              }}
+                                              style={{ fontSize: 11, padding: "4px 8px" }}
+                                            >
+                                              {TIME_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                            </select>
+                                          </td>
+                                          <td style={{ padding: "8px 0" }}>
+                                            <select 
+                                              className="pg-select" 
+                                              value={slot.end_time || slot.end || "22:00"} 
+                                              onChange={e => { 
+                                                const newSlots = [...formData.time_slots]; 
+                                                newSlots[globalIdx].end_time = e.target.value; 
+                                                newSlots[globalIdx].end = e.target.value; 
+                                                setFormData({ ...formData, time_slots: newSlots }); 
+                                              }}
+                                              style={{ fontSize: 11, padding: "4px 8px" }}
+                                            >
+                                              {TIME_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                              <option value="23:59">12:00 AM</option>
+                                            </select>
+                                          </td>
+                                          <td style={{ padding: "8px 0" }}>
+                                            <input 
+                                              type="number" 
+                                              className="pg-input" 
+                                              value={slot.price_per_hour || slot.price || ""} 
+                                              onChange={e => { 
+                                                const newSlots = [...formData.time_slots]; 
+                                                newSlots[globalIdx].price_per_hour = e.target.value; 
+                                                newSlots[globalIdx].price = e.target.value; 
+                                                setFormData({ ...formData, time_slots: newSlots }); 
+                                              }}
+                                              style={{ fontSize: 11, padding: "4px 8px", width: 60 }} 
+                                            />
+                                          </td>
+                                          <td style={{ padding: "8px 0" }}>
+                                            <select 
+                                              className="pg-select" 
+                                              value={slot.slot_type || slot.type || "regular"} 
+                                              onChange={e => { 
+                                                const newSlots = [...formData.time_slots]; 
+                                                newSlots[globalIdx].slot_type = e.target.value; 
+                                                newSlots[globalIdx].type = e.target.value; 
+                                                setFormData({ ...formData, time_slots: newSlots }); 
+                                              }}
+                                              style={{ fontSize: 11, padding: "4px 8px" }}
+                                            >
+                                              <option value="regular">Regular</option>
+                                              <option value="peak">Peak</option>
+                                              <option value="off_peak">Off-peak</option>
+                                            </select>
+                                          </td>
+                                          <td style={{ padding: "8px 0", textAlign: "right" }}>
+                                            <button 
+                                              type="button" 
+                                              onClick={() => removeSlot(globalIdx)}
+                                              className="flex items-center justify-center"
+                                              style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer" }}
+                                            >
+                                              <X size={14} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                                <button 
+                                  type="button" 
+                                  onClick={addSlot}
+                                  style={{
+                                    marginTop: 12,
+                                    background: "none",
+                                    border: "none",
+                                    color: "var(--teal)",
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4
+                                  }}
+                                >
+                                  + Add Another Slot
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        <div style={{ marginTop: 24 }}>
+                          <label className="pg-label">Cancellation Policy</label>
+                          <div className="pg-policy-selector">
+                            {[
+                              { id: "flexible", title: "Flexible", desc: "Full refund up to 24h before." },
+                              { id: "moderate", title: "Moderate", desc: "50% refund up to 24h, 100% up to 48h." },
+                              { id: "strict", title: "Strict", desc: "No refunds allowed for any cancellation." }
+                            ].map(p => (
+                              <button 
+                                key={p.id}
+                                className={`pg-policy-card ${formData.cancellation_policy === p.id ? "active" : ""}`}
+                                onClick={() => setFormData({ ...formData, cancellation_policy: p.id })}
+                              >
+                                <div className="pg-policy-title">{p.title}</div>
+                                <div className="pg-policy-desc">{p.desc}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     )}
                     {currentStep === 2 && (
-                      <AmenitiesStep 
-                        selected={formData.amenities} 
-                        onChange={(amenities) => setFormData({ ...formData, amenities })} 
-                      />
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                        {["Parking", "Water", "Washroom", "Floodlights", "CCTV", "Canteen"].map(item => (
+                          <div key={item} onClick={() => {
+                            const newAmen = formData.amenities.includes(item) ? formData.amenities.filter(a => a !== item) : [...formData.amenities, item];
+                            setFormData({...formData, amenities: newAmen});
+                          }} className={`pg-chip ${formData.amenities.includes(item) ? "active" : ""}`}>{item}</div>
+                        ))}
+                      </div>
                     )}
                     {currentStep === 3 && (
-                      <GalleryStep 
-                        images={formData.images} 
-                        onChange={(images) => setFormData({ ...formData, images })} 
-                      />
+                      <div>
+                        <ImageUploader 
+                          images={formData.images} 
+                          onChange={(newImages) => setFormData({ ...formData, images: typeof newImages === 'function' ? newImages(formData.images) : newImages })}
+                          maxImages={10}
+                        />
+                      </div>
                     )}
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Actions */}
-                <div className="flex items-center justify-between mt-16 pt-10 border-t border-black/5">
-                  <button 
-                    onClick={prevStep}
-                    disabled={currentStep === 0 || isSubmitting}
-                    className={`flex items-center gap-2 font-bold smooth-transition ${
-                      currentStep === 0 ? "opacity-0 pointer-events-none" : "text-gray-400 hover:text-secondary"
-                    }`}
-                  >
-                    <ChevronLeft className="w-5 h-5" /> Back
-                  </button>
-                  
-                  <button 
-                    onClick={nextStep}
-                    disabled={isSubmitting}
-                    className="bg-secondary hover:bg-primary text-white px-10 py-4 rounded-2xl font-bold flex items-center gap-2 smooth-transition shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] justify-center"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        {currentStep === steps.length - 1 ? "Save Changes" : "Continue"} 
-                        <ChevronRight className="w-5 h-5" />
-                      </>
-                    )}
+                <div style={{ marginTop: 40, paddingTop: 32, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+                  <button onClick={prevStep} disabled={currentStep === 0} className="pg-btn pg-btn-outline" style={{ opacity: currentStep === 0 ? 0 : 1 }}>Back</button>
+                  <button onClick={nextStep} disabled={isSubmitting} className="pg-btn pg-btn-teal">
+                    {isSubmitting ? "Updating..." : (currentStep === steps.length - 1 ? "Save Changes" : "Continue")}
                   </button>
                 </div>
               </>
             )}
+          </div>
         </div>
       </main>
-    </div>
-  </div>
-  );
-}
-
-// Reusing sub-components (In a real app, these would be exported from a shared file)
-function BasicInfoStep({ data, onChange }) {
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold outfit mb-2">The Basics</h2>
-        <p className="text-gray-500">Update the name and location of your sports arena.</p>
-      </div>
-
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Venue Name</label>
-          <div className="relative group">
-            <Trophy className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
-            <input 
-              type="text" 
-              value={data.name}
-              onChange={(e) => onChange({ name: e.target.value })}
-              placeholder="e.g. Masterstroke Turf" 
-              className="w-full bg-surface border border-black/5 rounded-2xl py-5 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Location Address</label>
-          <div className="relative group">
-            <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary smooth-transition" />
-            <input 
-              type="text" 
-              value={data.address}
-              onChange={(e) => onChange({ address: e.target.value })}
-              placeholder="Full address in Ahmedabad..." 
-              className="w-full bg-surface border border-black/5 rounded-2xl py-5 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-gray-400 ml-1">Description</label>
-          <textarea 
-            rows="4" 
-            value={data.description}
-            onChange={(e) => onChange({ description: e.target.value })}
-            placeholder="Highlight what makes your venue special" 
-            className="w-full bg-surface border border-black/5 rounded-2xl p-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CourtsStep({ courts, onChange }) {
-  const addCourt = () => {
-    onChange([...courts, { id: Date.now(), name: "", sport: "cricket", price: "" }]);
-  };
-
-  const removeCourt = (id) => {
-    if (courts.length > 1) {
-      onChange(courts.filter(c => c.id !== id));
-    }
-  };
-
-  const updateCourt = (id, field, value) => {
-    onChange(courts.map(c => c.id === id ? { ...c, [field]: value } : c));
-  };
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold outfit mb-2">Courts & Pricing</h2>
-          <p className="text-gray-500">Update playing areas and hourly rates.</p>
-        </div>
-        <button 
-          onClick={addCourt}
-          className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary/20 smooth-transition"
-        >
-          <Plus className="w-4 h-4" /> Add Court
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        {courts.map((court) => (
-          <div key={court.id} className="p-6 bg-surface rounded-3xl border border-black/5 relative group">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <div className="space-y-2">
-                 <label className="text-[10px] font-bold uppercase text-gray-400">Court Name</label>
-                 <input 
-                  type="text" 
-                  value={court.name}
-                  onChange={(e) => updateCourt(court.id, "name", e.target.value)}
-                  placeholder="Turf 1" 
-                  className="w-full bg-white border border-black/5 rounded-xl p-3 text-sm focus:outline-none" 
-                 />
-               </div>
-               <div className="space-y-2">
-                 <label className="text-[10px] font-bold uppercase text-gray-400">Sport Type</label>
-                 <select 
-                  value={court.sport}
-                  onChange={(e) => updateCourt(court.id, "sport", e.target.value)}
-                  className="w-full bg-white border border-black/5 rounded-xl p-3 text-sm focus:outline-none"
-                 >
-                    <option value="cricket">Cricket</option>
-                    <option value="football">Football</option>
-                    <option value="badminton">Badminton</option>
-                    <option value="tennis">Tennis</option>
-                    <option value="pickleball">Pickleball</option>
-                    <option value="volleyball">Volleyball</option>
-                 </select>
-               </div>
-               <div className="space-y-2">
-                 <label className="text-[10px] font-bold uppercase text-gray-400">Price (INR/hr)</label>
-                 <input 
-                  type="number" 
-                  value={court.price}
-                  onChange={(e) => updateCourt(court.id, "price", e.target.value)}
-                  placeholder="1200" 
-                  className="w-full bg-white border border-black/5 rounded-xl p-3 text-sm focus:outline-none" 
-                 />
-               </div>
-            </div>
-            {courts.length > 1 && (
-              <button 
-                onClick={() => removeCourt(court.id)}
-                className="absolute -top-3 -right-3 bg-white text-red-500 p-2 rounded-full border border-black/5 shadow-md opacity-0 group-hover:opacity-100 smooth-transition"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AmenitiesStep({ selected, onChange }) {
-  const list = ["Changing Rooms", "Parking", "Water", "Floodlights", "CCTV", "Canteen", "First Aid", "Showers"];
-  
-  const toggleAmenity = (item) => {
-    if (selected.includes(item)) {
-      onChange(selected.filter(a => a !== item));
-    } else {
-      onChange([...selected, item]);
-    }
-  };
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold outfit mb-2">Amenities</h2>
-        <p className="text-gray-500">What facilities do you provide for your players?</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {list.map(item => {
-          const isSelected = selected.includes(item);
-          return (
-            <button 
-              key={item} 
-              onClick={() => toggleAmenity(item)}
-              className={`p-4 rounded-2xl border smooth-transition text-sm font-bold flex items-center justify-center ${
-                isSelected 
-                  ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]" 
-                  : "border-black/5 bg-surface text-secondary hover:border-primary/30 hover:bg-white"
-              }`}
-            >
-              {item}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function GalleryStep({ images, onChange }) {
-  const fileInputRef = useRef(null);
-
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onChange([...images, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeImage = (index) => {
-    const newImages = images.filter((_, i) => i !== index);
-    onChange(newImages);
-  };
-
-  return (
-    <div className="space-y-8 text-center">
-      <div>
-        <h2 className="text-3xl font-bold outfit mb-2">Gallery</h2>
-        <p className="text-gray-500">Update photos of your venue.</p>
-      </div>
-
-      <div 
-        onClick={() => fileInputRef.current.click()}
-        className="border-4 border-dashed border-gray-100 rounded-[40px] py-16 bg-surface/50 flex flex-col items-center gap-6 group hover:border-primary/20 smooth-transition cursor-pointer"
-      >
-        <input 
-          type="file" 
-          multiple 
-          accept="image/*" 
-          className="hidden" 
-          ref={fileInputRef}
-          onChange={handleFileChange}
-        />
-        <div className="bg-white p-6 rounded-[32px] shadow-xl shadow-black/5 group-hover:scale-110 smooth-transition">
-          <Upload className="w-12 h-12 text-primary" />
-        </div>
-        <div>
-          <p className="font-bold text-lg">Click or drag images here</p>
-        </div>
-        <button className="bg-primary text-white px-8 py-3 rounded-2xl font-bold smooth-transition hover:bg-primary-dark">
-          Select Files
-        </button>
-      </div>
-
-      {images.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-          {images.map((url, index) => (
-            <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border border-black/5 shadow-sm">
-              <img 
-                src={url} 
-                alt={`Preview ${index + 1}`} 
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 smooth-transition flex items-center justify-center">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeImage(index);
-                  }}
-                  className="bg-white/20 backdrop-blur-md text-white p-3 rounded-full hover:bg-red-500 smooth-transition"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ async def list_users():
 
     users = await User.find_all().to_list()
     for u in users:
-        print(f"Name: {u.name}, Email: {u.email}, ID: {u.id}")
+        print(f"Name: {u.name}, Email: {u.email}, Role: {u.role}, ID: {u.id}")
 
 if __name__ == "__main__":
     asyncio.run(list_users())

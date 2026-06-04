@@ -9,20 +9,49 @@ import {
   Github,
   Globe,
   Smartphone,
-  CheckCircle2,
-  Trophy
+  CheckCircle2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AuthPage() {
   const router = useRouter();
+  const { showToast } = useToast();
+  const { login, user, isLoading: authLoading } = useAuth();
   const [mode, setMode] = useState("login"); // login or signup
   const [role, setRole] = useState("user"); // user or owner
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const cachedRole = localStorage.getItem("userRole");
+    if (cachedRole === "owner") {
+      router.replace("/owner/dashboard");
+      return;
+    } else if (cachedRole === "admin") {
+      router.replace("/admin");
+      return;
+    } else if (cachedRole === "handler") {
+      router.replace("/handler/dashboard");
+      return;
+    }
+
+    if (!authLoading && user) {
+      if (user.role === "owner") {
+        router.replace("/owner/dashboard");
+      } else if (user.role === "admin") {
+        router.replace("/admin");
+      } else if (user.role === "handler") {
+        router.replace("/handler/dashboard");
+      } else {
+        router.replace("/");
+      }
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +63,7 @@ export default function AuthPage() {
         ? { ...formData, role } 
         : new URLSearchParams({ username: formData.email, password: formData.password, role: role });
 
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${endpoint}`, {
         method: "POST",
         headers: mode === "signup" ? { "Content-Type": "application/json" } : { "Content-Type": "application/x-www-form-urlencoded" },
         body: payload instanceof URLSearchParams ? payload : JSON.stringify(payload)
@@ -42,15 +71,11 @@ export default function AuthPage() {
 
       if (response.ok) {
         const data = await response.json();
-        let token = null;
+        let token = data.access_token;
 
-        if (data.access_token) {
-          // Login response - save token directly
-          token = data.access_token;
-          localStorage.setItem("token", token);
-        } else if (mode === "signup") {
-          // Signup response - auto-login to get a token
-          const loginRes = await fetch("http://localhost:8000/api/auth/login", {
+        if (mode === "signup") {
+          // Auto-login after signup to get token
+          const loginRes = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({ username: formData.email, password: formData.password })
@@ -58,37 +83,48 @@ export default function AuthPage() {
           if (loginRes.ok) {
             const loginData = await loginRes.json();
             token = loginData.access_token;
-            localStorage.setItem("token", token);
           }
         }
 
-        // Fetch user name and store it
-        if (token) {
-          try {
-            const meRes = await fetch("http://localhost:8000/api/auth/me", {
-              headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (meRes.ok) {
-              const meData = await meRes.json();
-              localStorage.setItem("userName", meData.name);
-              localStorage.setItem("userRole", meData.role);
+        // Fetch user info to populate AuthContext
+        const meRes = await fetch("/api/auth/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (meRes.ok) {
+          const userData = await meRes.json();
+          login(token, userData);
+          
+          showToast(`${mode === 'login' ? 'Welcome back' : 'Account created'}!`, "success");
+          
+          // Role-based redirection
+          if (userData.role === "owner") {
+            router.push("/owner/dashboard");
+          } else if (userData.role === "handler") {
+            router.push("/handler/dashboard");
+          } else if (userData.role === "admin") {
+            // Admins can log in through the main portal too.
+            // Redirect them based on which toggle they selected (Player or Owner).
+            if (role === "owner") {
+              router.push("/owner/dashboard");
+            } else {
+              router.push("/");
             }
-          } catch (_) {}
+          } else {
+            router.push("/");
+          }
         }
-
-        // Redirect to home page
-        router.push("/");
       } else {
         const err = await response.json();
         // Extract the most readable error message
         const message = err.detail 
           ? (typeof err.detail === 'string' ? err.detail : (Array.isArray(err.detail) ? err.detail[0].msg : JSON.stringify(err.detail)))
           : "Authentication failed";
-        alert(message);
+        showToast(message, "error");
       }
     } catch (error) {
       console.error("Auth error:", error);
-      alert("Could not connect to the server. Please ensure the backend is running.");
+      showToast("Could not connect to the server. Please ensure the backend is running.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +134,7 @@ export default function AuthPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main className="flex-1 flex items-center justify-center pt-20 pb-12 px-6">
+      <main className="flex-1 flex items-center justify-center pt-20 pb-12 px-0 sm:px-4">
         <div className="max-w-6xl w-full grid md:grid-cols-2 gap-12 items-center">
 
           {/* Left: Branding/Value Prop */}
@@ -108,9 +144,7 @@ export default function AuthPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <div className="bg-primary/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-8">
-                <Trophy className="text-primary w-8 h-8" />
-              </div>
+
               <h1 className="text-6xl font-bold outfit leading-tight mb-6">
                 Join the <span className="text-gradient">Arena</span>.<br />
                 Own the Game.
@@ -145,26 +179,30 @@ export default function AuthPage() {
 
           {/* Right: Auth Form */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="glass rounded-[48px] border border-black/5 p-10 md:p-14 shadow-2xl shadow-black/5 relative overflow-hidden"
+            className="bg-white sm:glass sm:rounded-[48px] sm:shadow-2xl sm:shadow-black/5 max-w-md w-full p-6 sm:p-10 md:p-14 min-h-[calc(100vh-80px)] sm:min-h-0 flex flex-col justify-center sm:block border-y sm:border border-black/5 mx-auto relative overflow-hidden"
           >
             {/* Role Switcher */}
-            <div className="flex bg-surface p-1.5 rounded-2xl border border-black/5 mb-10 w-fit">
+            <div className="flex bg-surface p-1 rounded-2xl border border-black/5 mb-10 w-full sm:w-fit">
               <button
+                type="button"
                 onClick={() => setRole("user")}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${role === "user" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
+                className={`flex-1 min-h-[44px] px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${role === "user" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
                   }`}
+                suppressHydrationWarning
               >
-                I'm a Player
+                I&apos;m a Player
               </button>
               <button
+                type="button"
                 onClick={() => setRole("owner")}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${role === "owner" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
+                className={`flex-1 min-h-[44px] px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider smooth-transition ${role === "owner" ? "bg-white text-secondary shadow-sm" : "text-gray-400 hover:text-secondary"
                   }`}
+                suppressHydrationWarning
               >
-                I'm an Owner
+                I&apos;m an Owner
               </button>
             </div>
 
@@ -193,7 +231,8 @@ export default function AuthPage() {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="Rahul Sharma"
-                        className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
+                        className="w-full min-h-[52px] text-[16px] bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
+                        suppressHydrationWarning
                       />
                     </div>
                   </motion.div>
@@ -210,7 +249,8 @@ export default function AuthPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="rahul@example.com"
-                    className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
+                    className="w-full min-h-[52px] text-[16px] bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
+                    suppressHydrationWarning
                   />
                 </div>
               </div>
@@ -225,7 +265,8 @@ export default function AuthPage() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder="••••••••"
-                    className="w-full bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
+                    className="w-full min-h-[52px] text-[16px] bg-surface border border-black/5 rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/20 smooth-transition"
+                    suppressHydrationWarning
                   />
                 </div>
               </div>
@@ -233,7 +274,8 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-secondary hover:bg-primary text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-xl shadow-black/10 mt-8 disabled:opacity-50"
+                className="w-full min-h-[52px] bg-secondary hover:bg-primary text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-2 smooth-transition shadow-xl shadow-black/10 mt-8 disabled:opacity-50"
+                suppressHydrationWarning
               >
                 {isLoading ? "Processing..." : (mode === "login" ? "Sign In" : "Create Account")}
                 <ArrowRight className="w-5 h-5" />
@@ -246,15 +288,15 @@ export default function AuthPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
+              <button suppressHydrationWarning className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
                 <Globe className="w-5 h-5" /> Google
               </button>
-              <button className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
+              <button suppressHydrationWarning className="flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-black/5 hover:bg-surface smooth-transition font-medium text-sm text-secondary">
                 <Smartphone className="w-5 h-5" /> Smartphone
               </button>
             </div>
 
-            <p className="text-center mt-10 text-sm text-gray-500">
+            <p className="text-center mt-6 sm:mt-10 text-sm text-gray-500 py-4">
               {mode === "login" ? "Don't have an account?" : "Already have an account?"}
               <button
                 onClick={() => setMode(mode === "login" ? "signup" : "login")}

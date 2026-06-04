@@ -3,6 +3,7 @@
 import { Search, MapPin, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const slides = [
   {
@@ -24,7 +25,17 @@ const slides = [
 ];
 
 export default function Hero() {
+  const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [sport, setSport] = useState("");
+  const [location, setLocation] = useState("");
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (sport.trim()) params.append("sport", sport.trim());
+    if (location.trim()) params.append("search", location.trim());
+    router.push(`/explore?${params.toString()}`);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -34,7 +45,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    <section className="relative min-h-screen flex items-center pt-16 md:pt-20 pb-8 md:pb-0 overflow-hidden">
       {/* Background blobs */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 blur-[120px] -z-10 rounded-full" />
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-green-100/30 blur-[120px] -z-10 rounded-full" />
@@ -45,39 +56,51 @@ export default function Hero() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h1 className="text-5xl md:text-7xl font-bold outfit leading-tight mb-6 text-secondary">
+          <h1 className="text-3xl sm:text-4xl md:text-7xl font-bold outfit leading-tight mb-6 text-secondary">
             Find Your <span className="text-gradient">Arena</span>,<br /> 
             Own the Game.
           </h1>
-          <p className="text-gray-600 text-lg md:text-xl max-w-2xl mb-10 leading-relaxed">
+          <p className="text-gray-600 text-sm sm:text-base md:text-xl max-w-2xl mb-6 md:mb-10 leading-relaxed">
             Discover premium sports venues in Ahmedabad. From box cricket to pickleball, 
             book your slot in seconds and play with your squad.
           </p>
 
           {/* Search Box */}
-          <div className="glass p-2 rounded-2xl border border-black/5 flex flex-col md:flex-row gap-2 max-w-2xl shadow-xl shadow-black/5">
-            <div className="flex-1 flex items-center px-4 gap-3 py-3 md:py-0 border-b md:border-b-0 md:border-r border-black/5">
+          <div className="glass p-2 rounded-2xl border border-black/5 flex flex-col md:flex-row gap-2 max-w-2xl w-full shadow-xl shadow-black/5">
+            <div className="flex-1 flex items-center min-h-[52px] px-4 gap-3 py-3 md:py-0 border-b md:border-b-0 md:border-r border-black/5">
               <Search className="text-primary w-5 h-5" />
               <input 
                 type="text" 
                 placeholder="Which sport?" 
+                suppressHydrationWarning
+                value={sport}
+                onChange={(e) => setSport(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="bg-transparent border-none outline-none text-secondary w-full text-sm"
               />
             </div>
-            <div className="flex-1 flex items-center px-4 gap-3 py-3 md:py-0 border-b md:border-b-0 md:border-r border-black/5">
+            <div className="flex-1 flex items-center min-h-[52px] px-4 gap-3 py-3 md:py-0 border-b md:border-b-0 md:border-r border-black/5">
               <MapPin className="text-primary w-5 h-5" />
               <input 
                 type="text" 
                 placeholder="Location" 
+                suppressHydrationWarning
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 className="bg-transparent border-none outline-none text-secondary w-full text-sm"
               />
             </div>
-            <button className="bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 smooth-transition">
+            <button 
+              onClick={handleSearch}
+              suppressHydrationWarning
+              className="bg-primary w-full md:w-auto hover:bg-primary-dark text-white min-h-[52px] px-8 py-3 rounded-xl font-bold flex items-center justify-center gap-2 smooth-transition"
+            >
               Search <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="mt-8 flex items-center gap-6 text-sm text-gray-500 font-medium">
+          <div className="mt-6 md:mt-8 flex flex-wrap items-center gap-4 md:gap-6 text-sm text-gray-500 font-medium">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary" />
               150+ Venues
@@ -93,9 +116,9 @@ export default function Hero() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1 }}
-          className="hidden md:block relative"
+          className="block md:relative mt-8 md:mt-0"
         >
-          <div className="relative z-10 rounded-3xl overflow-hidden border border-black/5 shadow-2xl h-[500px]">
+          <div className="relative z-10 rounded-2xl md:rounded-3xl overflow-hidden border border-black/5 shadow-2xl h-[200px] md:h-[500px]">
             <AnimatePresence mode="wait">
               <motion.img 
                 key={currentSlide}
